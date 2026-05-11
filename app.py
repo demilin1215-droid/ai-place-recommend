@@ -148,15 +148,16 @@ def init_db():
 
     # 將預設分類寫入分類對照表
     if USE_POSTGRES:
-        conn.executemany("""
-            INSERT INTO place_categories (
-                category_value,
-                category_label,
-                sort_order
-            )
-            VALUES (%s, %s, %s)
-            ON CONFLICT (category_value) DO NOTHING
-        """, DEFAULT_CATEGORIES)
+        for category in DEFAULT_CATEGORIES:
+            conn.execute("""
+                INSERT INTO place_categories (
+                    category_value,
+                    category_label,
+                    sort_order
+                )
+                VALUES (%s, %s, %s)
+                ON CONFLICT (category_value) DO NOTHING
+            """, category)
     else:
         conn.executemany("""
             INSERT OR IGNORE INTO place_categories (
