@@ -2,6 +2,7 @@
 import os              # 作業系統模組，用於讀取環境變數
 import sqlite3         # SQLite 資料庫模組，用於本地資料儲存
 import tempfile         # 取得部署環境可寫入的暫存目錄
+import traceback        # 除錯時回傳詳細錯誤
 from flask import Flask, render_template, request, redirect, url_for  # 從 Flask 套件中匯入會用到的功能
 from dotenv import load_dotenv  # 載入 .env 環境變數檔案
 from recommend_service import get_recommended_place  # 用於計算地理距離
@@ -73,7 +74,7 @@ def category_labels_sql():
 def ensure_db_initialized():
     global DB_INITIALIZED
 
-    if request.endpoint in ("health", "static"):
+    if request.endpoint in ("health", "debug_db", "static"):
         return
 
     if not DB_INITIALIZED:
@@ -185,6 +186,30 @@ def get_active_categories():
 @app.route("/health")
 def health():
     return {"status": "ok", "database": "postgres" if USE_POSTGRES else "sqlite"}
+
+
+@app.route("/debug-db")
+def debug_db():
+    try:
+        init_db()
+
+        conn = get_db_connection()
+        categories_count = conn.execute("SELECT COUNT(*) AS count FROM place_categories").fetchone()
+        favorites_count = conn.execute("SELECT COUNT(*) AS count FROM favorite_places").fetchone()
+        conn.close()
+
+        return {
+            "status": "ok",
+            "database": "postgres" if USE_POSTGRES else "sqlite",
+            "categories_count": categories_count["count"],
+            "favorites_count": favorites_count["count"],
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "error": str(exc),
+            "traceback": traceback.format_exc(),
+        }, 500
 
 
 @app.route("/")
@@ -303,7 +328,7 @@ def recommend():
 
 	# 依照使用者指定的種類篩選收藏地點
     places = conn.execute(
-        """
+        f"""
         SELECT *
         FROM favorite_places
         WHERE category = {db_param()}
