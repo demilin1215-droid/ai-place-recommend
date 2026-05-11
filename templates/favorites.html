@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收藏清單｜AI 地點推薦助手</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="page">
+
+        <header>
+            <div class="title">收藏清單</div>
+            <div class="subtitle">
+                搜尋 Google Map 地點，並將想去的餐廳、咖啡廳、景點或展覽加入收藏。
+            </div>
+        </header>
+
+        <div class="form-group">
+            <label for="search-input">搜尋地點</label>
+            <input
+                id="search-input"
+                class="form-control"
+                type="text"
+                placeholder="輸入餐廳、咖啡廳、景點或地址"
+            >
+        </div>
+
+        <div id="map"></div>
+
+        <form method="POST" action="/favorites">
+            <div class="form-group">
+                <label>地點名稱</label>
+                <input
+                    type="text"
+                    id="place_name"
+                    name="place_name"
+                    class="form-control"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label>地址</label>
+                <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    class="form-control"
+                >
+            </div>
+
+            <input
+                type="hidden"
+                id="latitude"
+                name="latitude"
+            >
+
+            <input
+                type="hidden"
+                id="longitude"
+                name="longitude"
+            >
+
+            <input
+                type="hidden"
+                id="google_place_id"
+                name="google_place_id"
+            >
+
+            <div class="form-group">
+                <label>分類 (可選擇多個分類)</label>
+
+                <select name="category" class="form-control category-select" multiple required>
+                    {% for category in categories %}
+                        <option value="{{ category.category_value }}">
+                            {{ category.category_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>備註</label>
+                <textarea
+                    name="note"
+                    rows="3"
+                    class="form-control"
+                    placeholder="例如：想去吃早午餐、靠近捷運、適合拍照"
+                ></textarea>
+            </div>
+
+            <button type="submit" class="primary-button">
+                加入收藏
+            </button>
+        </form>
+
+        <section class="favorite-section">
+            <div class="section-title">我的收藏</div>
+
+            {% for place in places %}
+                <div class="place-card">
+
+                    <div class="place-card-header">
+                        <div class="place-card-title">
+                            {{ place.place_name }}
+                        </div>
+
+                        <div class="place-card-category">
+                            {{ place.category or "未分類" }}
+                        </div>
+                    </div>
+
+                    {% if place.address %}
+                        <div class="place-card-address">
+                            {{ place.address }}
+                        </div>
+                    {% endif %}
+
+                    {% if place.note %}
+                        <div class="place-card-note">
+                            <div class="note-label">備註</div>
+                            <div>{{ place.note }}</div>
+                        </div>
+                    {% endif %}
+
+                </div>
+            {% else %}
+                <div class="empty-box">
+                    目前尚無收藏地點。
+                </div>
+            {% endfor %}
+        </section>
+
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="/">首頁</a>
+        <a href="/favorites" class="active">收藏</a>
+    </nav>
+
+    <script>
+        const GOOGLE_MAPS_API_KEY = "{{ google_maps_api_key }}";
+    </script>
+
+    <script src="{{ url_for('static', filename='js/map_favorite.js') }}"></script>
+
+    <script
+        async
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&loading=async&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>

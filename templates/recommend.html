@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推薦結果｜今天想去哪裡？</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="page">
+
+        <header>
+            <div class="title">推薦結果</div>
+            <div class="subtitle">
+                根據你選擇的種類與目前位置，從收藏清單中找出最近的地點。
+            </div>
+        </header>
+
+        <div class="location-box">
+            <div class="location-label">想去的種類</div>
+            <div class="location-value">
+                {{ category or "尚未選擇" }}
+            </div>
+        </div>
+
+        <div class="location-box">
+            <div class="location-label">目前位置</div>
+
+            {% if location %}
+                <div class="location-value">{{ location }}</div>
+            {% elif lat and lng %}
+                <div class="location-value">緯度 {{ lat }}，經度 {{ lng }}</div>
+            {% else %}
+                <div class="location-value">尚未提供位置</div>
+            {% endif %}
+        </div>
+
+        <main>
+            <div class="section-title">現在推薦你去</div>
+
+            {% if message %}
+                <div class="empty-box">
+                    {{ message }}
+                </div>
+            {% elif recommended_place %}
+                <div class="recommend-card">
+                    <div class="recommend-rank">最近的收藏地點</div>
+
+                    <div class="place-name">
+                        {{ recommended_place["place_name"] }}
+                    </div>
+
+                    <div class="place-info">
+                        {{ recommended_place["category"] or "未分類" }}
+
+                        {% if recommended_place["address"] %}
+                            ｜{{ recommended_place["address"] }}
+                        {% endif %}
+                    </div>
+
+                    <div class="reason">
+                        推薦原因：這是你收藏清單中距離目前位置最近的「{{ category }}」地點，
+                        約 {{ recommended_place["distance"] }} 公里。
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty-box">
+                    目前無法產生推薦結果。
+                </div>
+            {% endif %}
+
+            <div class="button-row">
+                <a href="{{ url_for('index') }}" class="back-button">回首頁</a>
+            </div>
+        </main>
+
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="{{ url_for('index') }}">首頁</a>
+        <a href="{{ url_for('favorites') }}">收藏</a>
+        <a href="{{ url_for('recommend') }}" class="active">推薦</a>
+    </nav>
+</body>
+</html>

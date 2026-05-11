@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今天想去哪裡？</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+  <div class="page">
+
+    <header class="hero">
+      <h1>今天想去哪裡？</h1>
+      <p class="subtitle">選擇想去的地點種類，系統會從你的收藏清單中找出最近的地點。</p>
+    </header>
+
+    <section class="card">
+      <label class="form-label" for="category">想去的地點分類</label>
+
+      <select id="category" name="category" class="input" required>
+        <option value="">請選擇分類</option>
+       
+        {% for category in categories %}
+        <option value="{{ category.category_value }}">
+          {{ category.category_label }}
+        </option>
+        {% endfor %}
+      </select>
+
+      <button type="button" class="btn-primary" onclick="getCurrentLocation()">
+        使用目前位置推薦
+      </button>
+
+      <div class="divider">或輸入目前所在地</div>
+
+      <form action="{{ url_for('recommend') }}" method="get" onsubmit="return submitManualLocation(this)">
+        <input type="hidden" name="category" id="manualCategory">
+
+        <input
+          type="text"
+          name="location"
+          class="input"
+          placeholder="例如：台北車站"
+          required
+        >
+
+        <button type="submit" class="btn-secondary">
+          用輸入位置推薦
+        </button>
+      </form>
+    </section>
+
+    <br>
+
+    <section class="section">
+      <h2 class="section-title">最近收藏</h2>
+
+      {% if recent_favorites %}
+        {% for favorite in recent_favorites %}
+          <div class="place-card">
+            <h3>{{ favorite.place_name }}</h3>
+            <p>
+              {{ favorite.category or "未分類" }}｜
+              {{ favorite.address or "未填地址" }}｜
+              {% if favorite.visited %}
+                已去過
+              {% else %}
+                未去過
+              {% endif %}
+            </p>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="place-card">
+          <h3>目前尚無收藏</h3>
+          <p>先新增一個想去的地點吧！</p>
+        </div>
+      {% endif %}
+    </section>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="{{ url_for('index') }}">首頁</a>
+    <a href="{{ url_for('favorites') }}">收藏</a>
+  </nav>
+
+  <script>
+    function getSelectedCategory() {
+      const category = document.getElementById("category").value;
+
+      if (!category) {
+        alert("請先選擇想去的地點種類。");
+        return null;
+      }
+
+      return category;
+    }
+
+    function getCurrentLocation() {
+      const category = getSelectedCategory();
+
+      if (!category) {
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alert("你的瀏覽器不支援定位功能，請改用手動輸入所在地。");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          const url = `/recommend?category=${encodeURIComponent(category)}&lat=${lat}&lng=${lng}`;
+          window.location.href = url;
+        },
+        function(error) {
+          alert("無法取得目前位置，請改用手動輸入所在地。");
+        }
+      );
+    }
+
+    function submitManualLocation(form) {
+      const category = getSelectedCategory();
+
+      if (!category) {
+        return false;
+      }
+
+      document.getElementById("manualCategory").value = category;
+      return true;
+    }
+  </script>
+
+</body>
+</html>

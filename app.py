@@ -1,0 +1,375 @@
+# 匯入所需模組
+import os              # 作業系統模組，用於讀取環境變數
+import sqlite3         # SQLite 資料庫模組，用於本地資料儲存
+from flask import Flask, render_template, request, redirect, url_for  # 從 Flask 套件中匯入會用到的功能
+from dotenv import load_dotenv  # 載入 .env 環境變數檔案
+from recommend_service import get_recommended_place  # 用於計算地理距離
+import requests        # 用於發送 HTTP 請求（如呼叫 Google Maps API）
+
+# 載入 .env 檔案中的環境變數（如 GOOGLE_MAPS_API_KEY）
+load_dotenv()
+
+# 建立 Flask 應用程式
+# __name__ 會被設為 "__main__"，表示直接執行此檔案
+app = Flask(__name__)
+
+# 資料庫檔案名稱（SQLite 會建立於同目錄下）
+DB_NAME = "places.db"
+
+# 初始分類資料
+# 只有在 place_categories 是空表時，才會自動匯入這些預設分類
+DEFAULT_CATEGORIES = [
+    ("cafe", "咖啡廳", 1),
+    ("brunch", "早午餐", 2),
+    ("dessert", "甜點店", 3),
+    ("bistro", "餐酒館", 4),
+    ("snack", "小吃店", 5),
+    ("restaurant", "餐廳", 6),
+    ("bar", "酒吧", 7),
+    ("attraction", "景點", 8),
+    ("exhibition", "展覽", 9),
+    ("shop", "選物店", 10),
+    ("stationery", "文具店", 11),
+    ("toy", "玩具店", 12),
+    ("flower", "花店", 13),
+]
+
+#建立 SQLite 資料庫連線
+#回傳一個連線物件，後續可用於執行 SQL 語句
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    #設定 row_factory 為 sqlite3.Row，讓查詢結果可以用欄位名稱存取（如 row['place_name']）
+    conn.row_factory = sqlite3.Row
+    return conn
+
+#初始化資料庫，建立表格
+#此函式會在程式啟動時執行，確保資料表存在
+def init_db():
+    conn = get_db_connection()
+
+    # 建立收藏地點資料表
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS favorite_places (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主鍵，自動遞增
+            place_name TEXT NOT NULL,            -- 地點名稱（必填）
+            address TEXT,                         -- 地址
+            latitude REAL,                        -- 緯度
+            longitude REAL,                       -- 經度
+            google_place_id TEXT NOT NULL,        -- Google Places API 的地點 ID
+            category TEXT,                         -- 分類（如餐廳、景點、住宿）
+            note TEXT,                             -- 備註
+            visited INTEGER DEFAULT 0,            -- 是否已訪問（0=否，1=是）
+            revisit_rating INTEGER DEFAULT 0,  -- 再訪意願評分（0-5）
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 建立時間
+        )
+    """)
+
+    # 建立分類對照表
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS place_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_value TEXT NOT NULL UNIQUE,
+            category_label TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1
+        )        
+    """)
+
+    # 將預設分類寫入分類對照表
+    conn.executemany("""
+        INSERT OR IGNORE INTO place_categories (
+            category_value,
+            category_label,
+            sort_order
+        )
+        VALUES (?, ?, ?)
+    """, DEFAULT_CATEGORIES)
+
+    conn.commit()   # 提交交易，確保 SQL 語句執行
+    conn.close()    # 關閉連線，釋放資源
+
+def get_active_categories():
+    conn = get_db_connection()
+    categories = conn.execute("""
+        SELECT category_value, category_label
+        FROM place_categories
+        WHERE is_active = 1
+        ORDER BY sort_order
+    """).fetchall()
+    conn.close()
+    return categories
+
+
+#根路由：當使用者訪問 http://127.0.0.1:5000/ 時觸發
+#render_template用來顯示 HTML 頁面
+#redirect直接重新導向到另一個網址或頁面
+#url_for用來根據「函式名稱」產生網址
+##首頁，顯示最近收藏的 3 個地點
+@app.route("/")
+def index():
+    conn = get_db_connection()
+
+    recent_favorites = conn.execute("""
+        SELECT
+            place_name,
+            address,
+            latitude,
+            longitude,
+            google_place_id,
+            note,
+            visited,
+            GROUP_CONCAT(pc.category_label, '、') AS category,
+            MAX(fp.created_at) AS created_at
+        FROM favorite_places fp
+        LEFT JOIN place_categories pc ON fp.category = pc.category_value
+        GROUP BY
+            fp.google_place_id,
+            fp.place_name,
+            fp.address,
+            fp.latitude,
+            fp.longitude,
+            fp.note,
+            fp.visited
+        ORDER BY fp.created_at DESC
+        LIMIT 3
+    """).fetchall()
+
+    conn.close()
+    
+    categories = get_active_categories()
+
+    return render_template(
+        "index.html",
+        recent_favorites=recent_favorites,
+        categories=categories
+    )
+
+#使用 Google Maps Geocoding API 將地址轉換成經緯度
+def geocode_location(location):
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+
+    if not api_key:
+        return None, None
+
+    url = "https://maps.googleapis.com/maps/api/geocode/json"
+
+    params = {
+        "address": location,
+        "key": api_key,
+        "language": "zh-TW",
+        "region": "tw" #限定搜尋結果在台灣，提升地址解析的準確度
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    if data["status"] != "OK" or not data["results"]:
+        return None, None
+
+    geometry = data["results"][0]["geometry"]["location"]
+
+    return geometry["lat"], geometry["lng"]
+
+#推薦頁
+@app.route("/recommend")
+def recommend():
+    location = request.args.get("location")
+    user_lat = request.args.get("lat")
+    user_lng = request.args.get("lng")
+    category = request.args.get("category")
+
+    # 如果使用者是手動輸入所在地，就用 Google Geocoding API 轉成經緯度
+    if location and (not user_lat or not user_lng):
+        print(geocode_location(location))
+        user_lat, user_lng = geocode_location(location)
+        print(f"Geocoded '{location}' to lat: {user_lat}, lng: {user_lng}")
+        # return render_template(
+        #     "recommend.html",
+        #     recommended_place=recommended_place,
+        #     location=location,
+        #     lat=user_lat,
+        #     lng=user_lng,
+        #     category=category,
+        #     message=None
+        # )
+
+    # 檢查必要資料
+    if not category:
+        return render_template(
+            "recommend.html",
+            recommended_place=None,
+            location=location,
+            lat=user_lat,
+            lng=user_lng,
+            category=category,
+            message="請先選擇想去的地點種類。"
+        )
+
+    if not user_lat or not user_lng:
+        
+        return render_template(
+            "recommend.html",
+            recommended_place=None,
+            location=location,
+            lat=user_lat,
+            lng=user_lng,
+            category=category,
+            message="無法取得目前位置，請重新定位或輸入所在地。"
+        )
+
+    conn = get_db_connection()
+
+	# 依照使用者指定的種類篩選收藏地點
+    places = conn.execute(
+        """
+        SELECT *
+        FROM favorite_places
+        WHERE category = ?
+        """,
+        (category,)
+    ).fetchall()
+
+    conn.close()
+
+	# 如果沒有符合種類的收藏地點
+    if not places:
+        return render_template(
+            "recommend.html",
+            recommended_place=None,
+            location=location,
+            lat=user_lat,
+            lng=user_lng,
+            category=category,
+            message=f"目前沒有收藏「{category}」類型的地點。"
+        )
+
+	# 呼叫 recommend_service.py 裡面的推薦邏
+    recommended_place = get_recommended_place(
+        places,
+        user_lat,
+        user_lng
+    )
+
+	# 如果所有地點都沒有經緯度
+    if recommended_place is None:
+        return render_template(
+            "recommend.html",
+            recommended_place=None,
+            location=location,
+            lat=user_lat,
+            lng=user_lng,
+            category=category,
+            message="目前沒有可用的地點經緯度資料。"
+        )
+
+    return render_template(
+        "recommend.html",
+        recommended_place=recommended_place,
+        location=location,
+        lat=user_lat,
+        lng=user_lng,
+        category=category,
+        message=None
+    )
+
+#收藏頁
+#request取得使用者送出的資料，例如表單輸入、GET/POST 參數
+#- GET: 顯示所有已收藏的地點列表
+#- POST: 接收表單資料，新增地點到資料庫
+@app.route("/favorites", methods=["GET", "POST"])
+def favorites():
+    #檢查請求方法，若為 POST 表示要新增地點  
+    if request.method == "POST":
+        #從表單取得各欄位資料
+        place_name = request.form.get("place_name")
+        address = request.form.get("address")
+        latitude = request.form.get("latitude")
+        longitude = request.form.get("longitude")
+        google_place_id = request.form.get("google_place_id")
+        #category = request.form.get("category")
+        categories = request.form.getlist("category")  #取得多選的分類，會回傳一個列表
+        note = request.form.get("note")
+        visited = int(request.form.get("visited", 0))
+        revisit_rating = int(request.form.get("revisit_rating", 0))
+
+        #連線資料庫並執行 INSERT 語句
+        conn = get_db_connection()
+        for category in categories:
+            conn.execute("""
+                INSERT INTO favorite_places (
+                    place_name,
+                    address,
+                    latitude,
+                    longitude,
+                    google_place_id,
+                    category,
+                    note,
+                    visited,
+                    revisit_rating
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                place_name,
+                address,
+                latitude,
+                longitude,
+                google_place_id,
+                category,
+                note,
+                visited,
+                revisit_rating
+            ))
+        conn.commit()   # 提交交易
+        conn.close()    # 關閉連線
+
+        #新增完成後，重新導向回收藏頁面（防止重複提交）
+        return redirect(url_for("favorites"))
+
+    #若為 GET 請求，則查詢所有收藏地點
+    conn = get_db_connection()
+    places = conn.execute("""
+        SELECT
+            place_name,
+            address,
+            latitude,
+            longitude,
+            google_place_id,
+            note,
+            visited,
+            GROUP_CONCAT(pc.category_label, '、') AS category,
+            MAX(fp.created_at) AS created_at
+        FROM favorite_places fp
+        LEFT JOIN place_categories pc ON fp.category = pc.category_value
+        GROUP BY
+            google_place_id,
+            place_name,
+            address,
+            latitude,
+            longitude,
+            note,
+            visited
+        ORDER BY fp.created_at DESC   -- 最新新增的排在前面
+    """).fetchall()
+    conn.close()
+
+    categories = get_active_categories()
+
+    #從環境變數取得 Google Maps API Key（用於地圖顯示）
+    google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+
+    #渲染 HTML 模板並傳遞資料給前端
+    return render_template(
+        "favorites.html",
+        places=places,
+        categories=categories,
+        google_maps_api_key=google_maps_api_key
+    )
+
+#程式入口點
+#當直接執行此檔案（而非匯入模組）時才會執行
+#確保此檔案是主程式時才會初始化資料庫並啟動 Flask 伺服器
+if __name__ == "__main__":
+    init_db()              # 初始化資料庫
+    #app.run(debug=True)   # 啟動 Flask 伺服器（debug=True 開啟除錯模式）
+    app.run(host="0.0.0.0", port=5000, debug=False)
+
