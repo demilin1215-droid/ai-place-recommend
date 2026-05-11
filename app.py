@@ -46,7 +46,12 @@ def get_db_connection():
         import psycopg
         from psycopg.rows import dict_row
 
-        return psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=10)
+        return psycopg.connect(
+            DATABASE_URL,
+            row_factory=dict_row,
+            connect_timeout=10,
+            prepare_threshold=None,
+        )
 
     conn = sqlite3.connect(DB_NAME)
     #設定 row_factory 為 sqlite3.Row，讓查詢結果可以用欄位名稱存取（如 row['place_name']）
@@ -67,6 +72,9 @@ def category_labels_sql():
 @app.before_request
 def ensure_db_initialized():
     global DB_INITIALIZED
+
+    if request.endpoint in ("health", "static"):
+        return
 
     if not DB_INITIALIZED:
         init_db()
