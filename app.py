@@ -13,8 +13,8 @@ load_dotenv()
 # __name__ 會被設為 "__main__"，表示直接執行此檔案
 app = Flask(__name__)
 
-# 資料庫檔案名稱（SQLite 會建立於同目錄下）
-DB_NAME = "places.db"
+# 資料庫檔案名稱；Vercel 的專案目錄不可持久寫入，所以部署時使用 /tmp
+DB_NAME = "/tmp/places.db" if os.getenv("VERCEL") else "places.db"
 
 # 初始分類資料
 # 只有在 place_categories 是空表時，才會自動匯入這些預設分類
@@ -368,8 +368,9 @@ def favorites():
 #程式入口點
 #當直接執行此檔案（而非匯入模組）時才會執行
 #確保此檔案是主程式時才會初始化資料庫並啟動 Flask 伺服器
+init_db()
+
 if __name__ == "__main__":
-    init_db()              # 初始化資料庫
     #app.run(debug=True)   # 啟動 Flask 伺服器（debug=True 開啟除錯模式）
     app.run(host="0.0.0.0", port=5000, debug=False)
 
