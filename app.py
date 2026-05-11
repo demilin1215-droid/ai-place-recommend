@@ -1,6 +1,7 @@
 ﻿# 匯入所需模組
 import os              # 作業系統模組，用於讀取環境變數
 import sqlite3         # SQLite 資料庫模組，用於本地資料儲存
+import tempfile         # 取得部署環境可寫入的暫存目錄
 from flask import Flask, render_template, request, redirect, url_for  # 從 Flask 套件中匯入會用到的功能
 from dotenv import load_dotenv  # 載入 .env 環境變數檔案
 from recommend_service import get_recommended_place  # 用於計算地理距離
@@ -13,8 +14,11 @@ load_dotenv()
 # __name__ 會被設為 "__main__"，表示直接執行此檔案
 app = Flask(__name__)
 
-# 資料庫檔案名稱；Vercel 的專案目錄不可持久寫入，所以部署時使用 /tmp
-DB_NAME = "/tmp/places.db" if os.getenv("VERCEL") else "places.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
+USE_POSTGRES = bool(DATABASE_URL)
+
+# 資料庫檔案名稱；Vercel 的專案目錄不可持久寫入，所以 SQLite 只適合本機備用
+DB_NAME = os.path.join(tempfile.gettempdir(), "places.db") if os.getenv("VERCEL") else "places.db"
 
 # 初始分類資料
 # 只有在 place_categories 是空表時，才會自動匯入這些預設分類
@@ -34,13 +38,29 @@ DEFAULT_CATEGORIES = [
     ("flower", "花店", 13),
 ]
 
-#建立 SQLite 資料庫連線
+#建立資料庫連線
 #回傳一個連線物件，後續可用於執行 SQL 語句
 def get_db_connection():
+    if USE_POSTGRES:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
     conn = sqlite3.connect(DB_NAME)
     #設定 row_factory 為 sqlite3.Row，讓查詢結果可以用欄位名稱存取（如 row['place_name']）
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def db_param():
+    return "%s" if USE_POSTGRES else "?"
+
+
+def category_labels_sql():
+    if USE_POSTGRES:
+        return "STRING_AGG(pc.category_label, '、' ORDER BY pc.sort_order) AS category"
+    return "GROUP_CONCAT(pc.category_label, '、') AS category"
 
 #初始化資料庫，建立表格
 #此函式會在程式啟動時執行，確保資料表存在
@@ -48,42 +68,81 @@ def init_db():
     conn = get_db_connection()
 
     # 建立收藏地點資料表
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS favorite_places (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主鍵，自動遞增
-            place_name TEXT NOT NULL,            -- 地點名稱（必填）
-            address TEXT,                         -- 地址
-            latitude REAL,                        -- 緯度
-            longitude REAL,                       -- 經度
-            google_place_id TEXT NOT NULL,        -- Google Places API 的地點 ID
-            category TEXT,                         -- 分類（如餐廳、景點、住宿）
-            note TEXT,                             -- 備註
-            visited INTEGER DEFAULT 0,            -- 是否已訪問（0=否，1=是）
-            revisit_rating INTEGER DEFAULT 0,  -- 再訪意願評分（0-5）
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 建立時間
-        )
-    """)
+    if USE_POSTGRES:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS favorite_places (
+                id SERIAL PRIMARY KEY,
+                place_name TEXT NOT NULL,
+                address TEXT,
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
+                google_place_id TEXT NOT NULL,
+                category TEXT,
+                note TEXT,
+                visited INTEGER DEFAULT 0,
+                revisit_rating INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+    else:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS favorite_places (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主鍵，自動遞增
+                place_name TEXT NOT NULL,            -- 地點名稱（必填）
+                address TEXT,                         -- 地址
+                latitude REAL,                        -- 緯度
+                longitude REAL,                       -- 經度
+                google_place_id TEXT NOT NULL,        -- Google Places API 的地點 ID
+                category TEXT,                         -- 分類（如餐廳、景點、住宿）
+                note TEXT,                             -- 備註
+                visited INTEGER DEFAULT 0,            -- 是否已訪問（0=否，1=是）
+                revisit_rating INTEGER DEFAULT 0,  -- 再訪意願評分（0-5）
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 建立時間
+            )
+        """)
 
     # 建立分類對照表
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS place_categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category_value TEXT NOT NULL UNIQUE,
-            category_label TEXT NOT NULL,
-            sort_order INTEGER DEFAULT 0,
-            is_active INTEGER DEFAULT 1
-        )        
-    """)
+    if USE_POSTGRES:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS place_categories (
+                id SERIAL PRIMARY KEY,
+                category_value TEXT NOT NULL UNIQUE,
+                category_label TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1
+            )
+        """)
+    else:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS place_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_value TEXT NOT NULL UNIQUE,
+                category_label TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1
+            )        
+        """)
 
     # 將預設分類寫入分類對照表
-    conn.executemany("""
-        INSERT OR IGNORE INTO place_categories (
-            category_value,
-            category_label,
-            sort_order
-        )
-        VALUES (?, ?, ?)
-    """, DEFAULT_CATEGORIES)
+    if USE_POSTGRES:
+        conn.executemany("""
+            INSERT INTO place_categories (
+                category_value,
+                category_label,
+                sort_order
+            )
+            VALUES (%s, %s, %s)
+            ON CONFLICT (category_value) DO NOTHING
+        """, DEFAULT_CATEGORIES)
+    else:
+        conn.executemany("""
+            INSERT OR IGNORE INTO place_categories (
+                category_value,
+                category_label,
+                sort_order
+            )
+            VALUES (?, ?, ?)
+        """, DEFAULT_CATEGORIES)
 
     conn.commit()   # 提交交易，確保 SQL 語句執行
     conn.close()    # 關閉連線，釋放資源
@@ -109,7 +168,7 @@ def get_active_categories():
 def index():
     conn = get_db_connection()
 
-    recent_favorites = conn.execute("""
+    recent_favorites = conn.execute(f"""
         SELECT
             place_name,
             address,
@@ -118,7 +177,7 @@ def index():
             google_place_id,
             note,
             visited,
-            GROUP_CONCAT(pc.category_label, '、') AS category,
+            {category_labels_sql()},
             MAX(fp.created_at) AS created_at
         FROM favorite_places fp
         LEFT JOIN place_categories pc ON fp.category = pc.category_value
@@ -224,7 +283,7 @@ def recommend():
         """
         SELECT *
         FROM favorite_places
-        WHERE category = ?
+        WHERE category = {db_param()}
         """,
         (category,)
     ).fetchall()
@@ -295,7 +354,7 @@ def favorites():
         #連線資料庫並執行 INSERT 語句
         conn = get_db_connection()
         for category in categories:
-            conn.execute("""
+            conn.execute(f"""
                 INSERT INTO favorite_places (
                     place_name,
                     address,
@@ -307,7 +366,7 @@ def favorites():
                     visited,
                     revisit_rating
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES ({", ".join([db_param()] * 9)})
             """, (
                 place_name,
                 address,
@@ -327,7 +386,7 @@ def favorites():
 
     #若為 GET 請求，則查詢所有收藏地點
     conn = get_db_connection()
-    places = conn.execute("""
+    places = conn.execute(f"""
         SELECT
             place_name,
             address,
@@ -336,7 +395,7 @@ def favorites():
             google_place_id,
             note,
             visited,
-            GROUP_CONCAT(pc.category_label, '、') AS category,
+            {category_labels_sql()},
             MAX(fp.created_at) AS created_at
         FROM favorite_places fp
         LEFT JOIN place_categories pc ON fp.category = pc.category_value
