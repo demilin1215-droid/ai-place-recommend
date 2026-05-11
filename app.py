@@ -46,7 +46,7 @@ def get_db_connection():
         import psycopg
         from psycopg.rows import dict_row
 
-        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        return psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=10)
 
     conn = sqlite3.connect(DB_NAME)
     #設定 row_factory 為 sqlite3.Row，讓查詢結果可以用欄位名稱存取（如 row['place_name']）
@@ -174,6 +174,11 @@ def get_active_categories():
 #redirect直接重新導向到另一個網址或頁面
 #url_for用來根據「函式名稱」產生網址
 ##首頁，顯示最近收藏的 3 個地點
+@app.route("/health")
+def health():
+    return {"status": "ok", "database": "postgres" if USE_POSTGRES else "sqlite"}
+
+
 @app.route("/")
 def index():
     conn = get_db_connection()
