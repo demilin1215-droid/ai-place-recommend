@@ -70,6 +70,10 @@ def category_labels_sql():
     return "GROUP_CONCAT(pc.category_label, '、') AS category"
 
 
+def should_auto_init_db():
+    return not USE_POSTGRES
+
+
 @app.before_request
 def ensure_db_initialized():
     global DB_INITIALIZED
@@ -77,7 +81,7 @@ def ensure_db_initialized():
     if request.endpoint in ("health", "debug_db", "static"):
         return
 
-    if not DB_INITIALIZED:
+    if should_auto_init_db() and not DB_INITIALIZED:
         init_db()
         DB_INITIALIZED = True
 
@@ -191,7 +195,8 @@ def health():
 @app.route("/debug-db")
 def debug_db():
     try:
-        init_db()
+        if should_auto_init_db():
+            init_db()
 
         conn = get_db_connection()
         categories_count = conn.execute("SELECT COUNT(*) AS count FROM place_categories").fetchone()
