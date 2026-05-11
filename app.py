@@ -1,4 +1,4 @@
-# 匯入所需模組
+﻿# 匯入所需模組
 import os              # 作業系統模組，用於讀取環境變數
 import sqlite3         # SQLite 資料庫模組，用於本地資料儲存
 from flask import Flask, render_template, request, redirect, url_for  # 從 Flask 套件中匯入會用到的功能
@@ -373,4 +373,3 @@ init_db()
 if __name__ == "__main__":
     #app.run(debug=True)   # 啟動 Flask 伺服器（debug=True 開啟除錯模式）
     app.run(host="0.0.0.0", port=5000, debug=False)
-
