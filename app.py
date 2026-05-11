@@ -212,7 +212,7 @@ def index():
             fp.longitude,
             fp.note,
             fp.visited
-        ORDER BY fp.created_at DESC
+        ORDER BY created_at DESC
         LIMIT 3
     """).fetchall()
 
@@ -430,7 +430,7 @@ def favorites():
             longitude,
             note,
             visited
-        ORDER BY fp.created_at DESC   -- 最新新增的排在前面
+        ORDER BY created_at DESC   -- 最新新增的排在前面
     """).fetchall()
     conn.close()
 
