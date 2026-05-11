@@ -16,6 +16,7 @@ app = Flask(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 USE_POSTGRES = bool(DATABASE_URL)
+DB_INITIALIZED = False
 
 # 資料庫檔案名稱；Vercel 的專案目錄不可持久寫入，所以 SQLite 只適合本機備用
 DB_NAME = os.path.join(tempfile.gettempdir(), "places.db") if os.getenv("VERCEL") else "places.db"
@@ -61,6 +62,15 @@ def category_labels_sql():
     if USE_POSTGRES:
         return "STRING_AGG(pc.category_label, '、' ORDER BY pc.sort_order) AS category"
     return "GROUP_CONCAT(pc.category_label, '、') AS category"
+
+
+@app.before_request
+def ensure_db_initialized():
+    global DB_INITIALIZED
+
+    if not DB_INITIALIZED:
+        init_db()
+        DB_INITIALIZED = True
 
 #初始化資料庫，建立表格
 #此函式會在程式啟動時執行，確保資料表存在
@@ -426,9 +436,6 @@ def favorites():
 
 #程式入口點
 #當直接執行此檔案（而非匯入模組）時才會執行
-#確保此檔案是主程式時才會初始化資料庫並啟動 Flask 伺服器
-init_db()
-
 if __name__ == "__main__":
     #app.run(debug=True)   # 啟動 Flask 伺服器（debug=True 開啟除錯模式）
     app.run(host="0.0.0.0", port=5000, debug=False)
