@@ -14,14 +14,14 @@
         <header>
             <div class="title">推薦結果</div>
             <div class="subtitle">
-                根據你選擇的種類與目前位置，從收藏清單中找出最近的地點。
+                系統會從你的收藏清單中，依照分類、距離遠近與回訪意願，推薦目前最適合前往的地點。
             </div>
         </header>
 
         <div class="location-box">
-            <div class="location-label">想去的種類</div>
+            <div class="location-label">想去的分類</div>
             <div class="location-value">
-                {{ category or "尚未選擇" }}
+                {{ category_label or "尚未選擇" }}
             </div>
         </div>
 
@@ -31,7 +31,7 @@
             {% if location %}
                 <div class="location-value">{{ location }}</div>
             {% elif lat and lng %}
-                <div class="location-value">緯度 {{ lat }}，經度 {{ lng }}</div>
+                <div class="location-value">已取得目前位置，將以此作為推薦起點</div>
             {% else %}
                 <div class="location-value">尚未提供位置</div>
             {% endif %}
@@ -46,14 +46,14 @@
                 </div>
             {% elif recommended_place %}
                 <div class="recommend-card">
-                    <div class="recommend-rank">最近的收藏地點</div>
+                    <div class="recommend-rank">推薦的地點</div>
 
                     <div class="place-name">
                         {{ recommended_place["place_name"] }}
                     </div>
 
                     <div class="place-info">
-                        {{ recommended_place["category"] or "未分類" }}
+                        {{ recommended_place["category_label"] or "未分類" }}
 
                         {% if recommended_place["address"] %}
                             ｜{{ recommended_place["address"] }}
@@ -61,14 +61,9 @@
                     </div>
 
                     <div class="reason">
-                        推薦原因：這是你收藏清單中綜合分數最高的「{{ category }}」地點，
-                        距離約 {{ recommended_place["distance"] }} 公里。
-                        <br>
-                        distance_score：{{ recommended_place["distance_score"] }}
-                        <br>
-                        rating_score：{{ recommended_place["rating_score"] }}
-                        <br>
-                        final_score：{{ recommended_place["final_score"] }}
+                        {% for reason_line in recommended_place["reason_lines"] %}
+                            {{ reason_line }}{% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
                     </div>
                 </div>
             {% else %}

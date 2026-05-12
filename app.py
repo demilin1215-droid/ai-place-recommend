@@ -182,6 +182,24 @@ def get_active_categories():
     return categories
 
 
+def get_category_label(category_value):
+    if not category_value:
+        return None
+
+    conn = get_db_connection()
+    category = conn.execute(
+        f"""
+        SELECT category_label
+        FROM place_categories
+        WHERE category_value = {db_param()}
+        """,
+        (category_value,)
+    ).fetchone()
+    conn.close()
+
+    return category["category_label"] if category else None
+
+
 #根路由：當使用者訪問 http://127.0.0.1:5000/ 時觸發
 #render_template用來顯示 HTML 頁面
 #redirect直接重新導向到另一個網址或頁面
@@ -270,6 +288,7 @@ def recommend():
     user_lat = (request.args.get("lat") or "").strip()
     user_lng = (request.args.get("lng") or "").strip()
     category = request.args.get("category")
+    category_label = get_category_label(category)
 
     # 如果使用者是手動輸入所在地，就用 Google Geocoding API 轉成經緯度
     if location and (not user_lat or not user_lng):
@@ -283,6 +302,7 @@ def recommend():
                 lat=user_lat,
                 lng=user_lng,
                 category=category,
+                category_label=category_label,
                 message="無法解析輸入的所在地，請確認地址是否正確，或改用目前位置定位。"
             )
 
@@ -295,7 +315,8 @@ def recommend():
             lat=user_lat,
             lng=user_lng,
             category=category,
-            message="請先選擇想去的地點種類。"
+            category_label=category_label,
+            message="請先選擇想去的地點分類。"
         )
 
     if not user_lat or not user_lng:
@@ -307,24 +328,26 @@ def recommend():
             lat=user_lat,
             lng=user_lng,
             category=category,
+            category_label=category_label,
             message="無法取得目前位置，請重新定位或輸入所在地。"
         )
 
     conn = get_db_connection()
 
-	# 依照使用者指定的種類篩選收藏地點
+	# 依照使用者指定的分類篩選收藏地點
     places = conn.execute(
         f"""
-        SELECT *
-        FROM favorite_places
-        WHERE category = {db_param()}
+        SELECT fp.*, pc.category_label
+        FROM favorite_places fp
+        LEFT JOIN place_categories pc ON fp.category = pc.category_value
+        WHERE fp.category = {db_param()}
         """,
         (category,)
     ).fetchall()
 
     conn.close()
 
-	# 如果沒有符合種類的收藏地點
+	# 如果沒有符合分類的收藏地點
     if not places:
         return render_template(
             "recommend.html",
@@ -333,7 +356,8 @@ def recommend():
             lat=user_lat,
             lng=user_lng,
             category=category,
-            message=f"目前沒有收藏「{category}」類型的地點。"
+            category_label=category_label,
+            message=f"目前沒有收藏「{category_label or '這個分類'}」類型的地點。"
         )
 
 	# 呼叫 recommend_service.py 裡面的推薦邏
@@ -352,6 +376,7 @@ def recommend():
             lat=user_lat,
             lng=user_lng,
             category=category,
+            category_label=category_label,
             message="目前沒有可用的地點經緯度資料。"
         )
 
@@ -362,6 +387,7 @@ def recommend():
         lat=user_lat,
         lng=user_lng,
         category=category,
+        category_label=category_label,
         message=None
     )
 
