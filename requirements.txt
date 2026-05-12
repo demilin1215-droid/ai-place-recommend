@@ -3,3 +3,4 @@ python-dotenv
 requests
 geopy
 psycopg[binary]
+Authlib

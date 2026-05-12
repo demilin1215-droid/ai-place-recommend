@@ -2,7 +2,9 @@
 import os              # 作業系統模組，用於讀取環境變數
 import sqlite3         # SQLite 資料庫模組，用於本地資料儲存
 import tempfile         # 取得部署環境可寫入的暫存目錄
-from flask import Flask, render_template, request, redirect, url_for  # 從 Flask 套件中匯入會用到的功能
+from functools import wraps
+from flask import Flask, render_template, request, redirect, session, url_for  # 從 Flask 套件中匯入會用到的功能
+from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv  # 載入 .env 環境變數檔案
 from recommend_service import get_recommended_place  # 用於計算地理距離
 import requests        # 用於發送 HTTP 請求（如呼叫 Google Maps API）
@@ -13,6 +15,16 @@ load_dotenv()
 # 建立 Flask 應用程式
 # __name__ 會被設為 "__main__"，表示直接執行此檔案
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-key-change-me")
+
+oauth = OAuth(app)
+google = oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 USE_POSTGRES = bool(DATABASE_URL)
@@ -73,6 +85,26 @@ def should_auto_init_db():
     return not USE_POSTGRES
 
 
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("user_id"):
+            return redirect(url_for("login", next=request.url))
+        return view_func(*args, **kwargs)
+
+    return wrapped_view
+
+
+def safe_next_url(next_url):
+    if not next_url:
+        return url_for("index")
+
+    if next_url.startswith("/") or next_url.startswith(request.host_url):
+        return next_url
+
+    return url_for("index")
+
+
 @app.before_request
 def ensure_db_initialized():
     global DB_INITIALIZED
@@ -89,11 +121,36 @@ def ensure_db_initialized():
 def init_db():
     conn = get_db_connection()
 
+    # 建立使用者資料表
+    if USE_POSTGRES:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                google_sub TEXT NOT NULL UNIQUE,
+                email TEXT,
+                name TEXT,
+                picture TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+    else:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                google_sub TEXT NOT NULL UNIQUE,
+                email TEXT,
+                name TEXT,
+                picture TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
     # 建立收藏地點資料表
     if USE_POSTGRES:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS favorite_places (
                 id SERIAL PRIMARY KEY,
+                user_id INTEGER,
                 place_name TEXT NOT NULL,
                 address TEXT,
                 latitude DOUBLE PRECISION,
@@ -110,6 +167,7 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS favorite_places (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 主鍵，自動遞增
+                user_id INTEGER,                       -- 所屬使用者 ID
                 place_name TEXT NOT NULL,            -- 地點名稱（必填）
                 address TEXT,                         -- 地址
                 latitude REAL,                        -- 緯度
@@ -122,6 +180,13 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 建立時間
             )
         """)
+
+    if USE_POSTGRES:
+        conn.execute("ALTER TABLE favorite_places ADD COLUMN IF NOT EXISTS user_id INTEGER")
+    else:
+        favorite_columns = conn.execute("PRAGMA table_info(favorite_places)").fetchall()
+        if "user_id" not in [column["name"] for column in favorite_columns]:
+            conn.execute("ALTER TABLE favorite_places ADD COLUMN user_id INTEGER")
 
     # 建立分類對照表
     if USE_POSTGRES:
@@ -200,6 +265,73 @@ def get_category_label(category_value):
     return category["category_label"] if category else None
 
 
+def get_or_create_user(user_info):
+    google_sub = user_info.get("sub")
+    email = user_info.get("email")
+    name = user_info.get("name")
+    picture = user_info.get("picture")
+
+    conn = get_db_connection()
+    user = conn.execute(
+        f"""
+        SELECT id, google_sub, email, name, picture
+        FROM users
+        WHERE google_sub = {db_param()}
+        """,
+        (google_sub,)
+    ).fetchone()
+
+    if user:
+        conn.execute(
+            f"""
+            UPDATE users
+            SET email = {db_param()},
+                name = {db_param()},
+                picture = {db_param()}
+            WHERE id = {db_param()}
+            """,
+            (email, name, picture, user["id"])
+        )
+        conn.commit()
+        user_id = user["id"]
+    else:
+        cursor = conn.execute(
+            f"""
+            INSERT INTO users (
+                google_sub,
+                email,
+                name,
+                picture
+            )
+            VALUES ({", ".join([db_param()] * 4)})
+            RETURNING id
+            """,
+            (google_sub, email, name, picture)
+        ) if USE_POSTGRES else conn.execute(
+            f"""
+            INSERT INTO users (
+                google_sub,
+                email,
+                name,
+                picture
+            )
+            VALUES ({", ".join([db_param()] * 4)})
+            """,
+            (google_sub, email, name, picture)
+        )
+        user_id = cursor.fetchone()["id"] if USE_POSTGRES else cursor.lastrowid
+        conn.commit()
+
+    conn.close()
+
+    return {
+        "id": user_id,
+        "name": name,
+        "email": email,
+        "picture": picture,
+    }
+
+
 #根路由：當使用者訪問 http://127.0.0.1:5000/ 時觸發
 #render_template用來顯示 HTML 頁面
 #redirect直接重新導向到另一個網址或頁面
@@ -210,36 +342,78 @@ def health():
     return {"status": "ok", "database": "postgres" if USE_POSTGRES else "sqlite"}
 
 
+@app.route("/login")
+def login():
+    if session.get("user_id"):
+        return redirect(url_for("index"))
+
+    if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
+        return "Google OAuth 尚未設定，請先設定 GOOGLE_CLIENT_ID 與 GOOGLE_CLIENT_SECRET。", 500
+
+    session["next_url"] = safe_next_url(request.args.get("next"))
+    redirect_uri = url_for("auth_google_callback", _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    token = google.authorize_access_token()
+    user_info = token.get("userinfo")
+
+    if not user_info:
+        user_info = google.userinfo(token=token)
+
+    if not user_info or not user_info.get("sub"):
+        return redirect(url_for("index"))
+
+    user = get_or_create_user(user_info)
+    session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
+    session["user_email"] = user["email"]
+
+    return redirect(session.pop("next_url", url_for("index")))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
+
+
 @app.route("/")
 def index():
-    conn = get_db_connection()
+    recent_favorites = []
 
-    recent_favorites = conn.execute(f"""
-        SELECT
-            place_name,
-            address,
-            latitude,
-            longitude,
-            google_place_id,
-            note,
-            visited,
-            {category_labels_sql()},
-            MAX(fp.created_at) AS created_at
-        FROM favorite_places fp
-        LEFT JOIN place_categories pc ON fp.category = pc.category_value
-        GROUP BY
-            fp.google_place_id,
-            fp.place_name,
-            fp.address,
-            fp.latitude,
-            fp.longitude,
-            fp.note,
-            fp.visited
-        ORDER BY created_at DESC
-        LIMIT 3
-    """).fetchall()
+    if session.get("user_id"):
+        conn = get_db_connection()
 
-    conn.close()
+        recent_favorites = conn.execute(f"""
+            SELECT
+                place_name,
+                address,
+                latitude,
+                longitude,
+                google_place_id,
+                note,
+                visited,
+                {category_labels_sql()},
+                MAX(fp.created_at) AS created_at
+            FROM favorite_places fp
+            LEFT JOIN place_categories pc ON fp.category = pc.category_value
+            WHERE fp.user_id = {db_param()}
+            GROUP BY
+                fp.google_place_id,
+                fp.place_name,
+                fp.address,
+                fp.latitude,
+                fp.longitude,
+                fp.note,
+                fp.visited
+            ORDER BY created_at DESC
+            LIMIT 3
+        """, (session["user_id"],)).fetchall()
+
+        conn.close()
     
     categories = get_active_categories()
 
@@ -283,6 +457,7 @@ def geocode_location(location):
 
 #推薦頁
 @app.route("/recommend")
+@login_required
 def recommend():
     location = (request.args.get("location") or "").strip()
     user_lat = (request.args.get("lat") or "").strip()
@@ -341,8 +516,9 @@ def recommend():
         FROM favorite_places fp
         LEFT JOIN place_categories pc ON fp.category = pc.category_value
         WHERE fp.category = {db_param()}
+          AND fp.user_id = {db_param()}
         """,
-        (category,)
+        (category, session["user_id"])
     ).fetchall()
 
     conn.close()
@@ -396,6 +572,7 @@ def recommend():
 #- GET: 顯示所有已收藏的地點列表
 #- POST: 接收表單資料，新增地點到資料庫
 @app.route("/favorites", methods=["GET", "POST"])
+@login_required
 def favorites():
     #檢查請求方法，若為 POST 表示要新增地點  
     if request.method == "POST":
@@ -421,18 +598,20 @@ def favorites():
                     latitude,
                     longitude,
                     google_place_id,
+                    user_id,
                     category,
                     note,
                     visited,
                     revisit_rating
                 )
-                VALUES ({", ".join([db_param()] * 9)})
+                VALUES ({", ".join([db_param()] * 10)})
             """, (
                 place_name,
                 address,
                 latitude,
                 longitude,
                 google_place_id,
+                session["user_id"],
                 category,
                 note,
                 visited,
@@ -459,6 +638,7 @@ def favorites():
             MAX(fp.created_at) AS created_at
         FROM favorite_places fp
         LEFT JOIN place_categories pc ON fp.category = pc.category_value
+        WHERE fp.user_id = {db_param()}
         GROUP BY
             google_place_id,
             place_name,
@@ -468,7 +648,7 @@ def favorites():
             note,
             visited
         ORDER BY created_at DESC   -- 最新新增的排在前面
-    """).fetchall()
+    """, (session["user_id"],)).fetchall()
     conn.close()
 
     categories = get_active_categories()
@@ -486,6 +666,7 @@ def favorites():
 
 
 @app.route("/favorites/<path:google_place_id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_favorite(google_place_id):
     conn = get_db_connection()
 
@@ -504,10 +685,11 @@ def edit_favorite(google_place_id):
             SELECT created_at
             FROM favorite_places
             WHERE google_place_id = {db_param()}
+              AND user_id = {db_param()}
             ORDER BY created_at ASC
             LIMIT 1
             """,
-            (google_place_id,)
+            (google_place_id, session["user_id"])
         ).fetchone()
 
         if not existing_place:
@@ -517,8 +699,12 @@ def edit_favorite(google_place_id):
         created_at = existing_place["created_at"]
 
         conn.execute(
-            f"DELETE FROM favorite_places WHERE google_place_id = {db_param()}",
-            (google_place_id,)
+            f"""
+            DELETE FROM favorite_places
+            WHERE google_place_id = {db_param()}
+              AND user_id = {db_param()}
+            """,
+            (google_place_id, session["user_id"])
         )
 
         for category in categories:
@@ -529,19 +715,21 @@ def edit_favorite(google_place_id):
                     latitude,
                     longitude,
                     google_place_id,
+                    user_id,
                     category,
                     note,
                     visited,
                     revisit_rating,
                     created_at
                 )
-                VALUES ({", ".join([db_param()] * 10)})
+                VALUES ({", ".join([db_param()] * 11)})
             """, (
                 place_name,
                 address,
                 latitude,
                 longitude,
                 google_place_id,
+                session["user_id"],
                 category,
                 note,
                 visited,
@@ -567,6 +755,7 @@ def edit_favorite(google_place_id):
             MAX(created_at) AS created_at
         FROM favorite_places
         WHERE google_place_id = {db_param()}
+          AND user_id = {db_param()}
         GROUP BY
             google_place_id,
             place_name,
@@ -577,7 +766,7 @@ def edit_favorite(google_place_id):
             visited,
             revisit_rating
         """,
-        (google_place_id,)
+        (google_place_id, session["user_id"])
     ).fetchone()
 
     if not place:
@@ -589,8 +778,9 @@ def edit_favorite(google_place_id):
         SELECT category
         FROM favorite_places
         WHERE google_place_id = {db_param()}
+          AND user_id = {db_param()}
         """,
-        (google_place_id,)
+        (google_place_id, session["user_id"])
     ).fetchall()
 
     conn.close()
@@ -607,11 +797,16 @@ def edit_favorite(google_place_id):
 
 
 @app.route("/favorites/<path:google_place_id>/delete", methods=["POST"])
+@login_required
 def delete_favorite(google_place_id):
     conn = get_db_connection()
     conn.execute(
-        f"DELETE FROM favorite_places WHERE google_place_id = {db_param()}",
-        (google_place_id,)
+        f"""
+        DELETE FROM favorite_places
+        WHERE google_place_id = {db_param()}
+          AND user_id = {db_param()}
+        """,
+        (google_place_id, session["user_id"])
     )
     conn.commit()
     conn.close()
