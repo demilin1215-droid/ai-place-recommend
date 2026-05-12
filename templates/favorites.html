@@ -78,6 +78,48 @@
                 ></textarea>
             </div>
 
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="visited">是否去過</label>
+                    <select id="visited" name="visited" class="form-control" data-revisit-toggle>
+                        <option value="0" selected>還沒去過</option>
+                        <option value="1">已經去過</option>
+                    </select>
+                </div>
+
+                <div class="form-group revisit-rating-group" data-revisit-rating-group>
+                    <label for="revisit_rating_0">回訪意願</label>
+                    <div class="star-rating" role="radiogroup" aria-label="回訪意願">
+                        <input
+                            type="radio"
+                            id="revisit_rating_0"
+                            name="revisit_rating"
+                            value="0"
+                            class="star-rating-none"
+                            checked
+                        >
+
+                        <div class="star-rating-stars">
+                            {% for rating in range(5, 0, -1) %}
+                                <input
+                                    type="radio"
+                                    id="revisit_rating_{{ rating }}"
+                                    name="revisit_rating"
+                                    value="{{ rating }}"
+                                >
+                                <label
+                                    for="revisit_rating_{{ rating }}"
+                                    title="{{ rating }} 星"
+                                    aria-label="{{ rating }} 星"
+                                >★</label>
+                            {% endfor %}
+                        </div>
+
+                        <label for="revisit_rating_0" class="star-rating-clear">不評分</label>
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" class="primary-button">
                 加入收藏
             </button>
@@ -150,6 +192,7 @@
     </script>
 
     <script src="{{ url_for('static', filename='js/map_favorite.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/revisit_rating.js') }}"></script>
 
     <script
         async

@@ -61,15 +61,15 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="visited">是否去過</label>
-                    <select id="visited" name="visited" class="form-control">
+                    <select id="visited" name="visited" class="form-control" data-revisit-toggle>
                         <option value="0" {% if not place.visited %}selected{% endif %}>還沒去過</option>
                         <option value="1" {% if place.visited %}selected{% endif %}>已經去過</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="revisit_rating">再訪意願</label>
-                    <div class="star-rating" role="radiogroup" aria-label="再訪意願">
+                <div class="form-group revisit-rating-group" data-revisit-rating-group>
+                    <label for="revisit_rating_0">回訪意願</label>
+                    <div class="star-rating" role="radiogroup" aria-label="回訪意願">
                         <input
                             type="radio"
                             id="revisit_rating_0"
@@ -122,5 +122,7 @@
         <a href="{{ url_for('index') }}">首頁</a>
         <a href="{{ url_for('favorites') }}" class="active">收藏</a>
     </nav>
+
+    <script src="{{ url_for('static', filename='js/revisit_rating.js') }}"></script>
 </body>
 </html>

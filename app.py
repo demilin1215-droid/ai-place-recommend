@@ -7,7 +7,7 @@ from dotenv import load_dotenv  # 載入 .env 環境變數檔案
 from recommend_service import get_recommended_place  # 用於計算地理距離
 import requests        # 用於發送 HTTP 請求（如呼叫 Google Maps API）
 
-# 載入 .env 檔案中的環境變數（如 GOOGLE_MAPS_API_KEY）
+# 載入 .env 檔案中的環境變數（如 GOOGLE_MAPS_API_KEY、GOOGLE_GEOCODING_API_KEY）
 load_dotenv()
 
 # 建立 Flask 應用程式
@@ -233,9 +233,11 @@ def index():
 
 #使用 Google Maps Geocoding API 將地址轉換成經緯度
 def geocode_location(location):
-    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    api_key = os.getenv("GOOGLE_GEOCODING_API_KEY")
 
-    if not api_key:
+    location = (location or "").strip()
+
+    if not api_key or not location:
         return None, None
 
     url = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -247,10 +249,14 @@ def geocode_location(location):
         "region": "tw" #限定搜尋結果在台灣，提升地址解析的準確度
     }
 
-    response = requests.get(url, params=params)
-    data = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException:
+        return None, None
 
-    if data["status"] != "OK" or not data["results"]:
+    if data.get("status") != "OK" or not data.get("results"):
         return None, None
 
     geometry = data["results"][0]["geometry"]["location"]
@@ -260,25 +266,25 @@ def geocode_location(location):
 #推薦頁
 @app.route("/recommend")
 def recommend():
-    location = request.args.get("location")
-    user_lat = request.args.get("lat")
-    user_lng = request.args.get("lng")
+    location = (request.args.get("location") or "").strip()
+    user_lat = (request.args.get("lat") or "").strip()
+    user_lng = (request.args.get("lng") or "").strip()
     category = request.args.get("category")
 
     # 如果使用者是手動輸入所在地，就用 Google Geocoding API 轉成經緯度
     if location and (not user_lat or not user_lng):
-        print(geocode_location(location))
         user_lat, user_lng = geocode_location(location)
-        print(f"Geocoded '{location}' to lat: {user_lat}, lng: {user_lng}")
-        # return render_template(
-        #     "recommend.html",
-        #     recommended_place=recommended_place,
-        #     location=location,
-        #     lat=user_lat,
-        #     lng=user_lng,
-        #     category=category,
-        #     message=None
-        # )
+
+        if not user_lat or not user_lng:
+            return render_template(
+                "recommend.html",
+                recommended_place=None,
+                location=location,
+                lat=user_lat,
+                lng=user_lng,
+                category=category,
+                message="無法解析輸入的所在地，請確認地址是否正確，或改用目前位置定位。"
+            )
 
     # 檢查必要資料
     if not category:
@@ -377,7 +383,7 @@ def favorites():
         categories = request.form.getlist("category")  #取得多選的分類，會回傳一個列表
         note = request.form.get("note")
         visited = int(request.form.get("visited", 0))
-        revisit_rating = int(request.form.get("revisit_rating", 0))
+        revisit_rating = int(request.form.get("revisit_rating", 0)) if visited else 0
 
         #連線資料庫並執行 INSERT 語句
         conn = get_db_connection()
@@ -465,7 +471,7 @@ def edit_favorite(google_place_id):
         categories = request.form.getlist("category")
         note = request.form.get("note")
         visited = int(request.form.get("visited", 0))
-        revisit_rating = int(request.form.get("revisit_rating", 0))
+        revisit_rating = int(request.form.get("revisit_rating", 0)) if visited else 0
 
         existing_place = conn.execute(
             f"""

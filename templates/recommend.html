@@ -61,8 +61,14 @@
                     </div>
 
                     <div class="reason">
-                        推薦原因：這是你收藏清單中距離目前位置最近的「{{ category }}」地點，
-                        約 {{ recommended_place["distance"] }} 公里。
+                        推薦原因：這是你收藏清單中綜合分數最高的「{{ category }}」地點，
+                        距離約 {{ recommended_place["distance"] }} 公里。
+                        <br>
+                        distance_score：{{ recommended_place["distance_score"] }}
+                        <br>
+                        rating_score：{{ recommended_place["rating_score"] }}
+                        <br>
+                        final_score：{{ recommended_place["final_score"] }}
                     </div>
                 </div>
             {% else %}
