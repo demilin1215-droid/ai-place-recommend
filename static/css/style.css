@@ -162,6 +162,70 @@ body {
     gap: 12px;
 }
 
+.star-rating {
+    min-height: 43px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.star-rating-stars {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 2px;
+}
+
+.star-rating-stars input,
+.star-rating-none {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.star-rating-stars label {
+    width: 21px;
+    height: 28px;
+    color: #c8c8c8;
+    font-size: 24px;
+    line-height: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.star-rating-stars label:hover,
+.star-rating-stars label:hover ~ label,
+.star-rating-stars input:checked ~ label {
+    color: #f5b301;
+}
+
+.star-rating-stars label:hover {
+    transform: translateY(-1px);
+}
+
+.star-rating-stars input:focus-visible + label,
+.star-rating-none:focus-visible ~ .star-rating-clear {
+    outline: 2px solid #3f7cff;
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
+.star-rating-clear {
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.star-rating-clear:hover {
+    color: #2f5ec4;
+}
+
 .search-box {
     width: 100%;
     padding: 13px 14px;
@@ -380,6 +444,51 @@ body {
 /* =========================
    底部導覽列
 ========================= */
+
+.place-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.place-card-actions form {
+    margin: 0;
+}
+
+.card-action-button {
+    display: block;
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 20px;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.edit-action {
+    background-color: #f1f5ff;
+    border-color: #d7e2ff;
+    color: #2f5ec4;
+}
+
+.delete-action {
+    background-color: #fff1f1;
+    border-color: #ffd7d7;
+    color: #c42f2f;
+}
+
+.two-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
 
 .bottom-nav {
     position: fixed;

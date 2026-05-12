@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>收藏清單｜今天想去哪裡？</title>
+    <title>收藏地點 - PlaceMate</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -12,9 +12,9 @@
     <div class="page">
 
         <header>
-            <div class="title">收藏清單</div>
+            <div class="title">收藏地點</div>
             <div class="subtitle">
-                搜尋 Google Map 地點，並將想去的餐廳、咖啡廳、景點或展覽加入收藏。
+                從 Google Map 搜尋地點，加入你想去的餐廳、咖啡廳、景點、展覽或小店。
             </div>
         </header>
 
@@ -24,15 +24,15 @@
                 id="search-input"
                 class="form-control"
                 type="text"
-                placeholder="輸入餐廳、咖啡廳、景點或地址"
+                placeholder="輸入餐廳、咖啡廳、景點或店名"
             >
         </div>
 
         <div id="map"></div>
 
-        <form method="POST" action="/favorites">
+        <form method="POST" action="{{ url_for('favorites') }}">
             <div class="form-group">
-                <label>地點名稱</label>
+                <label for="place_name">地點名稱</label>
                 <input
                     type="text"
                     id="place_name"
@@ -43,7 +43,7 @@
             </div>
 
             <div class="form-group">
-                <label>地址</label>
+                <label for="address">地址</label>
                 <input
                     type="text"
                     id="address"
@@ -52,28 +52,13 @@
                 >
             </div>
 
-            <input
-                type="hidden"
-                id="latitude"
-                name="latitude"
-            >
-
-            <input
-                type="hidden"
-                id="longitude"
-                name="longitude"
-            >
-
-            <input
-                type="hidden"
-                id="google_place_id"
-                name="google_place_id"
-            >
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+            <input type="hidden" id="google_place_id" name="google_place_id">
 
             <div class="form-group">
-                <label>分類 (可選擇多個分類)</label>
-
-                <select name="category" class="form-control category-select" multiple required>
+                <label for="category">分類（可多選）</label>
+                <select id="category" name="category" class="form-control category-select" multiple required>
                     {% for category in categories %}
                         <option value="{{ category.category_value }}">
                             {{ category.category_label }}
@@ -83,12 +68,13 @@
             </div>
 
             <div class="form-group">
-                <label>備註</label>
+                <label for="note">備註</label>
                 <textarea
+                    id="note"
                     name="note"
                     rows="3"
                     class="form-control"
-                    placeholder="例如：想去吃早午餐、靠近捷運、適合拍照"
+                    placeholder="例如：推薦菜色、想去原因、營業時間提醒"
                 ></textarea>
             </div>
 
@@ -126,10 +112,28 @@
                         </div>
                     {% endif %}
 
+                    <div class="place-card-actions">
+                        <a
+                            href="{{ url_for('edit_favorite', google_place_id=place.google_place_id) }}"
+                            class="card-action-button edit-action"
+                        >
+                            編輯
+                        </a>
+                        <form
+                            method="POST"
+                            action="{{ url_for('delete_favorite', google_place_id=place.google_place_id) }}"
+                            onsubmit="return confirm('確定要刪除這個收藏嗎？');"
+                        >
+                            <button type="submit" class="card-action-button delete-action">
+                                刪除
+                            </button>
+                        </form>
+                    </div>
+
                 </div>
             {% else %}
                 <div class="empty-box">
-                    目前尚無收藏地點。
+                    目前還沒有收藏任何地點。
                 </div>
             {% endfor %}
         </section>
@@ -137,8 +141,8 @@
     </div>
 
     <nav class="bottom-nav">
-        <a href="/">首頁</a>
-        <a href="/favorites" class="active">收藏</a>
+        <a href="{{ url_for('index') }}">首頁</a>
+        <a href="{{ url_for('favorites') }}" class="active">收藏</a>
     </nav>
 
     <script>

@@ -452,8 +452,141 @@ def favorites():
         google_maps_api_key=google_maps_api_key
     )
 
+
+@app.route("/favorites/<path:google_place_id>/edit", methods=["GET", "POST"])
+def edit_favorite(google_place_id):
+    conn = get_db_connection()
+
+    if request.method == "POST":
+        place_name = request.form.get("place_name")
+        address = request.form.get("address")
+        latitude = request.form.get("latitude")
+        longitude = request.form.get("longitude")
+        categories = request.form.getlist("category")
+        note = request.form.get("note")
+        visited = int(request.form.get("visited", 0))
+        revisit_rating = int(request.form.get("revisit_rating", 0))
+
+        existing_place = conn.execute(
+            f"""
+            SELECT created_at
+            FROM favorite_places
+            WHERE google_place_id = {db_param()}
+            ORDER BY created_at ASC
+            LIMIT 1
+            """,
+            (google_place_id,)
+        ).fetchone()
+
+        if not existing_place:
+            conn.close()
+            return redirect(url_for("favorites"))
+
+        created_at = existing_place["created_at"]
+
+        conn.execute(
+            f"DELETE FROM favorite_places WHERE google_place_id = {db_param()}",
+            (google_place_id,)
+        )
+
+        for category in categories:
+            conn.execute(f"""
+                INSERT INTO favorite_places (
+                    place_name,
+                    address,
+                    latitude,
+                    longitude,
+                    google_place_id,
+                    category,
+                    note,
+                    visited,
+                    revisit_rating,
+                    created_at
+                )
+                VALUES ({", ".join([db_param()] * 10)})
+            """, (
+                place_name,
+                address,
+                latitude,
+                longitude,
+                google_place_id,
+                category,
+                note,
+                visited,
+                revisit_rating,
+                created_at
+            ))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for("favorites"))
+
+    place = conn.execute(
+        f"""
+        SELECT
+            place_name,
+            address,
+            latitude,
+            longitude,
+            google_place_id,
+            note,
+            visited,
+            revisit_rating,
+            MAX(created_at) AS created_at
+        FROM favorite_places
+        WHERE google_place_id = {db_param()}
+        GROUP BY
+            google_place_id,
+            place_name,
+            address,
+            latitude,
+            longitude,
+            note,
+            visited,
+            revisit_rating
+        """,
+        (google_place_id,)
+    ).fetchone()
+
+    if not place:
+        conn.close()
+        return redirect(url_for("favorites"))
+
+    selected_rows = conn.execute(
+        f"""
+        SELECT category
+        FROM favorite_places
+        WHERE google_place_id = {db_param()}
+        """,
+        (google_place_id,)
+    ).fetchall()
+
+    conn.close()
+
+    selected_categories = [row["category"] for row in selected_rows]
+    categories = get_active_categories()
+
+    return render_template(
+        "edit_favorite.html",
+        place=place,
+        categories=categories,
+        selected_categories=selected_categories
+    )
+
+
+@app.route("/favorites/<path:google_place_id>/delete", methods=["POST"])
+def delete_favorite(google_place_id):
+    conn = get_db_connection()
+    conn.execute(
+        f"DELETE FROM favorite_places WHERE google_place_id = {db_param()}",
+        (google_place_id,)
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("favorites"))
+
 #程式入口點
 #當直接執行此檔案（而非匯入模組）時才會執行
 if __name__ == "__main__":
     #app.run(debug=True)   # 啟動 Flask 伺服器（debug=True 開啟除錯模式）
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(debug=False)

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>編輯收藏 - PlaceMate</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="page">
+        <header>
+            <div class="title">編輯收藏</div>
+            <div class="subtitle">
+                更新地點資訊、分類、備註，以及是否去過和再訪意願。
+            </div>
+        </header>
+
+        <form method="POST" action="{{ url_for('edit_favorite', google_place_id=place.google_place_id) }}">
+            <div class="form-group">
+                <label for="place_name">地點名稱</label>
+                <input
+                    type="text"
+                    id="place_name"
+                    name="place_name"
+                    class="form-control"
+                    value="{{ place.place_name }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="address">地址</label>
+                <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    class="form-control"
+                    value="{{ place.address or '' }}"
+                >
+            </div>
+
+            <input type="hidden" id="latitude" name="latitude" value="{{ place.latitude or '' }}">
+            <input type="hidden" id="longitude" name="longitude" value="{{ place.longitude or '' }}">
+
+            <div class="form-group">
+                <label for="category">分類（可多選）</label>
+                <select id="category" name="category" class="form-control category-select" multiple required>
+                    {% for category in categories %}
+                        <option
+                            value="{{ category.category_value }}"
+                            {% if category.category_value in selected_categories %}selected{% endif %}
+                        >
+                            {{ category.category_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="visited">是否去過</label>
+                    <select id="visited" name="visited" class="form-control">
+                        <option value="0" {% if not place.visited %}selected{% endif %}>還沒去過</option>
+                        <option value="1" {% if place.visited %}selected{% endif %}>已經去過</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="revisit_rating">再訪意願</label>
+                    <div class="star-rating" role="radiogroup" aria-label="再訪意願">
+                        <input
+                            type="radio"
+                            id="revisit_rating_0"
+                            name="revisit_rating"
+                            value="0"
+                            class="star-rating-none"
+                            {% if place.revisit_rating == 0 %}checked{% endif %}
+                        >
+
+                        <div class="star-rating-stars">
+                            {% for rating in range(5, 0, -1) %}
+                                <input
+                                    type="radio"
+                                    id="revisit_rating_{{ rating }}"
+                                    name="revisit_rating"
+                                    value="{{ rating }}"
+                                    {% if place.revisit_rating == rating %}checked{% endif %}
+                                >
+                                <label
+                                    for="revisit_rating_{{ rating }}"
+                                    title="{{ rating }} 星"
+                                    aria-label="{{ rating }} 星"
+                                >★</label>
+                            {% endfor %}
+                        </div>
+
+                        <label for="revisit_rating_0" class="star-rating-clear">不評分</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="note">備註</label>
+                <textarea
+                    id="note"
+                    name="note"
+                    rows="4"
+                    class="form-control"
+                >{{ place.note or '' }}</textarea>
+            </div>
+
+            <div class="button-row two-buttons">
+                <a href="{{ url_for('favorites') }}" class="back-button">返回</a>
+                <button type="submit" class="primary-button">儲存修改</button>
+            </div>
+        </form>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="{{ url_for('index') }}">首頁</a>
+        <a href="{{ url_for('favorites') }}" class="active">收藏</a>
+    </nav>
+</body>
+</html>
