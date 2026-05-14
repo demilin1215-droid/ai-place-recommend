@@ -1,9 +1,3 @@
-// 全域變數宣告
-// 用於在函式間共享地圖、標記、自动完成物件
-let map;          // Google 地圖物件
-let marker;       // 地圖標記（顯示選中的地點）
-let autocomplete; // Google Places Autocomplete 物件（自動完成搜尋）
-
 /**
  * 初始化地圖
  * 此函式會在 Google Maps API 載入完成後自動執行（callback=initMap）
@@ -16,13 +10,13 @@ function initMap() {
     };
 
     // 建立地圖物件並顯示在 #map 元素中
-    map = new google.maps.Map(document.getElementById("map"), {
+    const map = new google.maps.Map(document.getElementById("map"), {
         center: defaultLocation,  // 地圖中心點
         zoom: 13                   // 縮放層級（1=世界，20=街道）
     });
 
     // 建立標記（預設隱藏）
-    marker = new google.maps.Marker({
+    const marker = new google.maps.Marker({
         map: map,
         position: defaultLocation,
         visible: false  // 初始隱藏標記
@@ -33,7 +27,7 @@ function initMap() {
 
     // 建立 Autocomplete（自動完成）元件
     // 使用 Google Places API 提供地點搜尋建議
-    autocomplete = new google.maps.places.Autocomplete(input, {
+    const autocomplete = new google.maps.places.Autocomplete(input, {
         // 指定要回傳的欄位
         fields: ["name", "formatted_address", "geometry", "place_id"],
         // 限制只搜尋台灣（country code: "tw"）

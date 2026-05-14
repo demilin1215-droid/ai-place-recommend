@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, session, url_for  #
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv  # 載入 .env 環境變數檔案
 from recommend_service import get_recommended_places  # 用於計算地理距離與推薦排序
-from ai_service import generate_ai_reason  # 用於產生 AI 推薦理由
+from ai_service import generate_ai_reasons_for_places  # 用於批次產生 AI 推薦理由
 import requests        # 用於發送 HTTP 請求（如呼叫 Google Maps API）
 
 # 載入 .env 檔案中的環境變數（如 GOOGLE_MAPS_API_KEY、GOOGLE_GEOCODING_API_KEY）
@@ -443,7 +443,7 @@ def geocode_location(location):
     }
 
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
     except requests.RequestException:
@@ -558,13 +558,15 @@ def recommend():
             message="目前沒有可用的地點經緯度資料。"
         )
 
-    # 推薦地點成功產生後，再補上 AI 推薦理由；失敗時 ai_service 會自動回傳 fallback
+    # 推薦地點成功產生後，一次批次產生 AI 推薦理由；失敗時 ai_service 會自動回傳 fallback
+    ai_reasons = generate_ai_reasons_for_places(
+        recommended_places,
+        category_label or category,
+        total_recommendations=len(recommended_places)
+    )
+
     for place in recommended_places:
-        place["ai_reason"] = generate_ai_reason(
-            place,
-            category_label or category,
-            total_recommendations=len(recommended_places)
-        )
+        place["ai_reason"] = ai_reasons.get(str(place["rank"]))
 
     return render_template(
         "recommend.html",
@@ -825,5 +827,4 @@ def delete_favorite(google_place_id):
 #程式入口點
 #當直接執行此檔案（而非匯入模組）時才會執行
 if __name__ == "__main__":
-    #app.run(debug=True)   # 啟動 Flask 伺服器（debug=True 開啟除錯模式）
     app.run(debug=False)

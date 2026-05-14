@@ -197,10 +197,6 @@
         <a href="{{ url_for('favorites') }}" class="active">收藏</a>
     </nav>
 
-    <script>
-        const GOOGLE_MAPS_API_KEY = "{{ google_maps_api_key }}";
-    </script>
-
     <script src="{{ url_for('static', filename='js/map_favorite.js') }}"></script>
     <script src="{{ url_for('static', filename='js/revisit_rating.js') }}"></script>
 

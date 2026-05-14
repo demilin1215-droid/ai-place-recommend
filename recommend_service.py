@@ -102,10 +102,6 @@ def get_recommended_places(places, user_lat, user_lng, limit=3):
         scored_place["_raw_rating_score"] = rating_score
         scored_place["_raw_final_score"] = final_score
         scored_place["distance"] = round(distance, 2)
-        scored_place["distance_score"] = round(distance_score, 4)
-        scored_place["rating_score"] = round(rating_score, 4)
-        scored_place["final_score"] = round(final_score, 4)
-        scored_place["recommendation_strength"] = round(final_score * 100)
         scored_places.append(scored_place)
 
     if not scored_places:
