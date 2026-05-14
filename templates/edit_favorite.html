@@ -17,7 +17,7 @@
             </div>
         </header>
 
-        <form method="POST" action="{{ url_for('edit_favorite', google_place_id=place.google_place_id) }}">
+        <form method="POST" action="{{ url_for('edit_favorite', google_place_id=place.google_place_id) }}" onsubmit="return validateCategorySelection(this)">
             <div class="form-group">
                 <label for="place_name">地點名稱</label>
                 <input
@@ -45,17 +45,23 @@
             <input type="hidden" id="longitude" name="longitude" value="{{ place.longitude or '' }}">
 
             <div class="form-group">
-                <label for="category">分類（可多選）</label>
-                <select id="category" name="category" class="form-control category-select" multiple required>
+                <label>分類（可多選）</label>
+
+                <div class="category-checkbox-group" data-category-group>
                     {% for category in categories %}
-                        <option
-                            value="{{ category.category_value }}"
-                            {% if category.category_value in selected_categories %}selected{% endif %}
-                        >
-                            {{ category.category_label }}
-                        </option>
+                        <label class="category-checkbox">
+                            <input
+                                type="checkbox"
+                                name="category"
+                                value="{{ category.category_value }}"
+                                {% if category.category_value in selected_categories %}checked{% endif %}
+                            >
+                            <span>{{ category.category_label }}</span>
+                        </label>
                     {% endfor %}
-                </select>
+                </div>
+
+                <div class="form-hint">請選擇一個或多個分類</div>
             </div>
 
             <div class="form-row">
@@ -124,5 +130,18 @@
     </nav>
 
     <script src="{{ url_for('static', filename='js/revisit_rating.js') }}"></script>
+
+    <script>
+        function validateCategorySelection(form) {
+            const checkedCategories = form.querySelectorAll('input[name="category"]:checked');
+
+            if (checkedCategories.length === 0) {
+                alert("請至少選擇一個分類");
+                return false;
+            }
+
+            return true;
+        }
+    </script>
 </body>
 </html>

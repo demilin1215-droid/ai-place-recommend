@@ -40,7 +40,7 @@
 
         <div id="map"></div>
 
-        <form method="POST" action="{{ url_for('favorites') }}">
+        <form method="POST" action="{{ url_for('favorites') }}" onsubmit="return validateCategorySelection(this)">
             <div class="form-group">
                 <label for="place_name">地點名稱</label>
                 <input
@@ -67,14 +67,22 @@
             <input type="hidden" id="google_place_id" name="google_place_id">
 
             <div class="form-group">
-                <label for="category">分類（可多選）</label>
-                <select id="category" name="category" class="form-control category-select" multiple required>
+                <label>分類（可多選）</label>
+
+                <div class="category-checkbox-group" data-category-group>
                     {% for category in categories %}
-                        <option value="{{ category.category_value }}">
-                            {{ category.category_label }}
-                        </option>
+                        <label class="category-checkbox">
+                            <input
+                                type="checkbox"
+                                name="category"
+                                value="{{ category.category_value }}"
+                            >
+                            <span>{{ category.category_label }}</span>
+                        </label>
                     {% endfor %}
-                </select>
+                </div>
+
+                <div class="form-hint">請選擇一個或多個分類</div>
             </div>
 
             <div class="form-group">
@@ -199,6 +207,19 @@
 
     <script src="{{ url_for('static', filename='js/map_favorite.js') }}"></script>
     <script src="{{ url_for('static', filename='js/revisit_rating.js') }}"></script>
+
+    <script>
+        function validateCategorySelection(form) {
+            const checkedCategories = form.querySelectorAll('input[name="category"]:checked');
+
+            if (checkedCategories.length === 0) {
+                alert("請至少選擇一個分類");
+                return false;
+            }
+
+            return true;
+        }
+    </script>
 
     <script
         async
