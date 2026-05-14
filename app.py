@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, redirect, session, url_for  #
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv  # 載入 .env 環境變數檔案
 from recommend_service import get_recommended_place  # 用於計算地理距離
+from ai_service import generate_ai_reason  # 用於產生 AI 推薦理由
 import requests        # 用於發送 HTTP 請求（如呼叫 Google Maps API）
 
 # 載入 .env 檔案中的環境變數（如 GOOGLE_MAPS_API_KEY、GOOGLE_GEOCODING_API_KEY）
@@ -536,7 +537,7 @@ def recommend():
             message=f"目前沒有收藏「{category_label or '這個分類'}」類型的地點。"
         )
 
-	# 呼叫 recommend_service.py 裡面的推薦邏
+	# 呼叫 recommend_service.py 裡面的推薦地點
     recommended_place = get_recommended_place(
         places,
         user_lat,
@@ -556,9 +557,17 @@ def recommend():
             message="目前沒有可用的地點經緯度資料。"
         )
 
+    # 推薦地點成功產生後，再補上 AI 推薦理由；失敗時 ai_service 會自動回傳 fallback
+    ai_reason = generate_ai_reason(
+        recommended_place,
+        category,
+        recommended_place["distance"]
+    )
+
     return render_template(
         "recommend.html",
         recommended_place=recommended_place,
+        ai_reason=ai_reason,
         location=location,
         lat=user_lat,
         lng=user_lng,

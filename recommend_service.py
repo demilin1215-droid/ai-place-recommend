@@ -12,15 +12,25 @@ def calculate_distance_score(distance):
     return 1 / (1 + distance)
 
 
-def calculate_rating_score(revisit_rating):
+def is_visited(visited):
+    try:
+        return int(visited or 0) == 1
+    except (TypeError, ValueError):
+        return False
+
+
+def calculate_rating_score(revisit_rating, visited):
+    if not is_visited(visited):
+        return 0.5
+
     if revisit_rating is None:
-        return 0.6
+        return 0
 
     rating = int(revisit_rating)
-    if 1 <= rating <= 5:
+    if 0 <= rating <= 5:
         return rating / 5
 
-    return 0.6
+    return 0
 
 
 def has_revisit_rating(revisit_rating):
@@ -37,17 +47,16 @@ def build_recommend_reason(recommended_place):
 
     if not has_revisit_rating(revisit_rating):
         return [
-            f"推薦原因：這個地點距離你目前位置約 {distance} 公里，目前尚未有回訪評分，因此系統以中立分數計算，保留探索新地點的機會。"
+            f"這個地點距離你目前位置約 {distance} 公里，目前尚未有回訪評分，因此系統以中立分數計算，保留探索新地點的機會。"
         ]
 
     rating = int(revisit_rating)
     if rating >= 4 and not recommended_place.get("is_nearest_place"):
         return [
-            f"推薦原因：這個地點距離你目前位置約 {distance} 公里，雖然這個地點不是距離最近的收藏，但你曾給予較高回訪評分，因此系統將它列為較適合的推薦選項。"
+            f"這個地點距離你目前位置約 {distance} 公里，雖然這個地點不是距離最近的收藏，但你曾給予較高回訪評分，因此系統將它列為較適合的推薦選項。"
         ]
 
     return [
-        "推薦原因：",
         f"距離你目前位置約 {distance} 公里。",
         f"你的回訪意願評分為 {rating} / 5 星。",
         "系統綜合考量距離便利性與過去偏好，因此推薦這個地點。",
@@ -76,7 +85,7 @@ def get_recommended_place(places, user_lat, user_lng):
             nearest_distance = distance
 
         distance_score = calculate_distance_score(distance)
-        rating_score = calculate_rating_score(place["revisit_rating"])
+        rating_score = calculate_rating_score(place["revisit_rating"], place["visited"])
         final_score = distance_score * 0.7 + rating_score * 0.3
 
         if highest_score is None or final_score > highest_score:

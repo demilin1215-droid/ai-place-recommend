@@ -4,3 +4,4 @@ requests
 geopy
 psycopg[binary]
 Authlib
+google-genai

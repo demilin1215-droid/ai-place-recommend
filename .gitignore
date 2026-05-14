@@ -1,10 +1,8 @@
 # Python 暫存檔
 __pycache__/
-*.pyc
 
 # 虛擬環境
 .venv/
-venv/
 
 # 環境變數與 API Key
 .env
