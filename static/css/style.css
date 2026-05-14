@@ -1,48 +1,137 @@
-/* =========================
-   全站共用樣式
-========================= */
-
-body {
-    margin: 0;
-    font-family: "Microsoft JhengHei", Arial, sans-serif;
-    background-color: #f5f5f5;
-    color: #333;
+:root {
+    --page-bg: #F7F3EA;
+    --card-bg: #FFFDF7;
+    --text-main: #2F2A24;
+    --text-muted: #7A7167;
+    --primary: #6F7D5C;
+    --primary-hover: #5D6A4E;
+    --border-soft: #E3D8C8;
+    --tag-bg: #E9E1D3;
+    --tag-text: #6B5E4E;
+    --note-bg: #F4EFE6;
+    --delete-red: #B66A5A;
+    --delete-bg: #F8E7E1;
+    --focus-ring: rgba(111, 125, 92, 0.28);
+    --shadow-soft: 0 8px 22px rgba(67, 55, 42, 0.08);
+    --shadow-map: 0 10px 26px rgba(67, 55, 42, 0.12);
+    --radius-card: 22px;
+    --radius-control: 16px;
 }
 
-.page {
-    max-width: 420px;
-    min-height: 100vh;
-    margin: 0 auto;
-    background-color: #ffffff;
-    padding: 24px 20px 80px;
+* {
     box-sizing: border-box;
 }
 
-.title {
-    font-size: 26px;
-    font-weight: bold;
-    margin-bottom: 8px;
+html {
+    background-color: var(--page-bg);
+}
+
+body {
+    margin: 0;
+    font-family: "Microsoft JhengHei", "Noto Sans TC", Arial, sans-serif;
+    background-color: var(--page-bg);
+    color: var(--text-main);
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+.page {
+    width: 100%;
+    max-width: 420px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 24px 18px 92px;
+    background-color: var(--page-bg);
+}
+
+.hero,
+header {
+    padding: 6px 2px 4px;
+    margin-bottom: 18px;
+}
+
+.title,
+.hero h1 {
+    margin: 0 0 8px;
+    color: var(--text-main);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.25;
 }
 
 .subtitle {
+    margin: 0 0 24px;
+    color: var(--text-muted);
     font-size: 15px;
-    color: #666;
-    line-height: 1.6;
-    margin-bottom: 24px;
+    line-height: 1.75;
 }
 
-.section-title {
+.section,
+.favorite-section {
+    margin-top: 30px;
+}
+
+.section-title,
+.favorite-title {
+    display: flex;
+    align-items: center;
+    margin: 0 0 16px;
+    padding-left: 12px;
+    border-left: 4px solid var(--primary);
+    color: var(--text-main);
     font-size: 20px;
-    font-weight: bold;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.card,
+.place-card,
+.favorite-card,
+.recommend-card,
+.location-box,
+.empty-box,
+.info-box {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-card);
+    background-color: var(--card-bg);
+    box-shadow: var(--shadow-soft);
+}
+
+.card {
+    padding: 18px;
     margin-bottom: 16px;
-    border-left: 4px solid #3f7cff;
-    padding-left: 10px;
+}
+
+.card p,
+.place-card p,
+.favorite-card p {
+    margin: 0 0 14px;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.card p:last-child,
+.place-card p:last-child,
+.favorite-card p:last-child {
+    margin-bottom: 0;
 }
 
 .empty-box {
+    padding: 34px 20px;
+    color: var(--text-muted);
     text-align: center;
-    padding: 40px 20px;
-    color: #777;
     line-height: 1.8;
 }
 
@@ -50,110 +139,178 @@ body {
     margin-top: 24px;
 }
 
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1;
+}
 
-/* =========================
-   共用按鈕樣式
-========================= */
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background-color: var(--border-soft);
+}
 
-.primary-button {
+.primary-button,
+.secondary-button,
+.back-button,
+.save-button,
+.btn-primary,
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
-    padding: 13px 16px;
-    border: none;
-    border-radius: 10px;
-    background-color: #3f7cff;
-    color: white;
+    min-height: 48px;
+    padding: 13px 18px;
+    border: 1px solid transparent;
+    border-radius: 999px;
     font-size: 16px;
-    cursor: pointer;
-    box-sizing: border-box;
-}
-
-.primary-button:hover {
-    background-color: #2f68d8;
-}
-
-.secondary-button {
-    width: 100%;
-    padding: 13px 16px;
-    border: none;
-    border-radius: 10px;
-    background-color: #222;
-    color: white;
-    font-size: 16px;
-    cursor: pointer;
-    box-sizing: border-box;
-}
-
-.secondary-button:hover {
-    background-color: #000;
-}
-
-.back-button {
-    display: block;
-    width: 100%;
+    font-weight: 700;
+    line-height: 1.3;
     text-align: center;
-    padding: 13px 16px;
-    border-radius: 10px;
-    background-color: #222;
-    color: white;
     text-decoration: none;
-    box-sizing: border-box;
-    font-size: 16px;
-}
-
-.back-button:hover {
-    background-color: #000;
-}
-
-.save-button {
-    width: 100%;
-    padding: 13px 16px;
-    border: none;
-    border-radius: 10px;
-    background-color: #3f7cff;
-    color: white;
-    font-size: 16px;
     cursor: pointer;
-    box-sizing: border-box;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.save-button:hover {
-    background-color: #2f68d8;
+.primary-button,
+.save-button,
+.btn-primary {
+    background-color: var(--primary);
+    color: #FFFDF7;
+    box-shadow: 0 7px 16px rgba(111, 125, 92, 0.2);
 }
 
-.save-button:disabled {
-    background-color: #aaa;
+.primary-button:hover,
+.save-button:hover,
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    box-shadow: 0 9px 20px rgba(93, 106, 78, 0.24);
+}
+
+.secondary-button,
+.back-button,
+.btn-secondary {
+    background-color: var(--tag-bg);
+    border-color: var(--border-soft);
+    color: var(--tag-text);
+}
+
+.secondary-button:hover,
+.back-button:hover,
+.btn-secondary:hover {
+    background-color: #DED4C4;
+    color: var(--text-main);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.back-button:active,
+.save-button:active,
+.btn-primary:active,
+.btn-secondary:active,
+.card-action-button:active {
+    transform: translateY(1px);
+}
+
+.save-button:disabled,
+.primary-button:disabled,
+.btn-primary:disabled {
+    background-color: #B9B0A4;
+    box-shadow: none;
     cursor: not-allowed;
 }
 
-
-/* =========================
-   表單共用樣式
-========================= */
-
 .form-group {
-    margin-bottom: 14px;
+    margin-bottom: 15px;
 }
 
-.form-group label {
+.form-group label,
+.form-label,
+.section-label {
     display: block;
+    margin-bottom: 7px;
+    color: var(--tag-text);
     font-size: 14px;
-    color: #444;
-    margin-bottom: 6px;
+    font-weight: 700;
+    line-height: 1.5;
 }
 
-.form-control {
+.form-control,
+.input,
+.location-input,
+.search-box {
     width: 100%;
-    padding: 11px 12px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
+    min-height: 46px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-control);
+    outline: none;
+    background-color: var(--card-bg);
+    color: var(--text-main);
     font-size: 15px;
-    box-sizing: border-box;
-    font-family: inherit;
+    line-height: 1.5;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.input,
+.location-input,
+.search-box {
+    margin-bottom: 12px;
+}
+
+textarea.form-control {
+    min-height: 96px;
+    resize: vertical;
+}
+
+select.form-control,
+select.input {
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--tag-text) 50%),
+        linear-gradient(135deg, var(--tag-text) 50%, transparent 50%);
+    background-position:
+        calc(100% - 19px) 50%,
+        calc(100% - 13px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 38px;
+}
+
+select[multiple].form-control,
+select[multiple].input {
+    min-height: 124px;
+    padding-right: 14px;
+    background-image: none;
+}
+
+.form-control::placeholder,
+.input::placeholder,
+.location-input::placeholder,
+.search-box::placeholder {
+    color: #A49A8D;
+}
+
+.form-control:focus,
+.input:focus,
+.location-input:focus,
+.search-box:focus,
+.star-rating:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 .form-control:read-only {
-    background-color: #f5f5f5;
-    color: #666;
+    background-color: var(--note-bg);
+    color: var(--text-muted);
 }
 
 .form-row {
@@ -163,14 +320,15 @@ body {
 }
 
 .star-rating {
-    min-height: 43px;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 7px 10px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    box-sizing: border-box;
+    min-height: 46px;
+    padding: 8px 11px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-control);
+    background-color: var(--card-bg);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .star-rating-stars {
@@ -190,7 +348,8 @@ body {
 .star-rating-stars label {
     width: 21px;
     height: 28px;
-    color: #c8c8c8;
+    margin: 0;
+    color: #CDBFAD;
     font-size: 24px;
     line-height: 28px;
     text-align: center;
@@ -201,7 +360,7 @@ body {
 .star-rating-stars label:hover,
 .star-rating-stars label:hover ~ label,
 .star-rating-stars input:checked ~ label {
-    color: #f5b301;
+    color: #C49345;
 }
 
 .star-rating-stars label:hover {
@@ -210,250 +369,158 @@ body {
 
 .star-rating-stars input:focus-visible + label,
 .star-rating-none:focus-visible ~ .star-rating-clear {
-    outline: 2px solid #3f7cff;
+    outline: 2px solid var(--primary);
     outline-offset: 3px;
-    border-radius: 6px;
+    border-radius: 8px;
 }
 
 .star-rating-clear {
-    color: #666;
+    color: var(--text-muted);
     font-size: 13px;
-    cursor: pointer;
     white-space: nowrap;
+    cursor: pointer;
 }
 
 .star-rating-clear:hover {
-    color: #2f5ec4;
+    color: var(--primary-hover);
 }
 
 .revisit-rating-group.is-hidden {
     display: none;
 }
 
-.search-box {
-    width: 100%;
-    padding: 13px 14px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 16px;
-    box-sizing: border-box;
-    margin-bottom: 16px;
-}
-
-
-/* =========================
-   Google Map 區塊
-   favorites.html / map_search.html 共用
-========================= */
-
 #map {
     width: 100%;
     height: 320px;
-    border-radius: 14px;
-    margin-bottom: 18px;
+    margin: 0 0 20px;
+    border: 1px solid var(--border-soft);
+    border-radius: 24px;
+    background-color: var(--note-bg);
+    box-shadow: var(--shadow-map);
+    overflow: hidden;
 }
-
-
-/* =========================
-   首頁 index.html
-========================= */
-
-.location-input {
-    width: 100%;
-    padding: 13px 14px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 16px;
-    box-sizing: border-box;
-    margin-bottom: 12px;
-}
-
-.section-label {
-    font-size: 16px;
-    margin-bottom: 10px;
-    color: #444;
-}
-
-.favorite-title {
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 16px;
-    border-left: 4px solid #3f7cff;
-    padding-left: 10px;
-}
-
-.favorite-card {
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 12px;
-    background-color: #fafafa;
-}
-
-.favorite-name {
-    font-size: 17px;
-    font-weight: bold;
-    margin-bottom: 6px;
-}
-
-.favorite-info {
-    font-size: 14px;
-    color: #666;
-}
-
-
-/* =========================
-   推薦頁 recommend.html
-========================= */
 
 .location-box {
-    background-color: #f1f5ff;
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 24px;
+    padding: 15px 17px;
+    margin-bottom: 14px;
 }
 
 .location-label {
+    margin-bottom: 5px;
+    color: var(--text-muted);
     font-size: 13px;
-    color: #666;
-    margin-bottom: 4px;
+    font-weight: 700;
+    line-height: 1.5;
 }
 
 .location-value {
+    color: var(--primary-hover);
     font-size: 16px;
-    font-weight: bold;
-    color: #2f5ec4;
+    font-weight: 800;
+    line-height: 1.55;
 }
 
-.recommend-card {
-    border: 1px solid #ddd;
-    border-radius: 14px;
-    padding: 16px;
+.recommend-card,
+.place-card,
+.favorite-card {
+    padding: 17px;
     margin-bottom: 14px;
-    background-color: #fafafa;
 }
 
 .recommend-rank {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    margin-bottom: 9px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    background-color: var(--tag-bg);
+    color: var(--tag-text);
     font-size: 13px;
-    color: #3f7cff;
-    font-weight: bold;
-    margin-bottom: 6px;
+    font-weight: 800;
+    line-height: 1.4;
 }
 
-.place-name {
+.place-name,
+.favorite-name,
+.place-card-title,
+.place-card h3 {
+    margin: 0 0 8px;
+    color: var(--text-main);
     font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 8px;
+    font-weight: 800;
+    line-height: 1.4;
 }
 
-.place-info {
+.place-info,
+.favorite-info,
+.place-card-address {
+    color: var(--text-muted);
     font-size: 14px;
-    color: #666;
-    line-height: 1.6;
-    margin-bottom: 10px;
+    line-height: 1.7;
+}
+
+.reason,
+.place-card-note,
+.info-box {
+    padding: 12px 13px;
+    border: 1px solid rgba(227, 216, 200, 0.72);
+    border-radius: 16px;
+    background-color: var(--note-bg);
+    color: var(--tag-text);
+    font-size: 14px;
+    line-height: 1.75;
 }
 
 .reason {
-    font-size: 14px;
-    background-color: #fff;
-    border-radius: 10px;
-    padding: 10px 12px;
-    color: #444;
-    line-height: 1.6;
+    margin-top: 10px;
 }
 
-
-/* =========================
-   地圖搜尋頁 map_search.html
-========================= */
+.reason strong {
+    color: var(--text-main);
+}
 
 .info-box {
-    background-color: #f8f8f8;
-    border-radius: 12px;
-    padding: 14px 16px;
     margin-bottom: 16px;
-    font-size: 14px;
-    line-height: 1.7;
-    color: #444;
-}
-
-
-/* =========================
-   收藏頁 favorites.html
-========================= */
-
-/* =========================
-   收藏頁 favorites.html
-========================= */
-
-.favorite-section {
-    margin-top: 32px;
-}
-
-.place-card {
-    border: 1px solid #e2e2e2;
-    padding: 16px;
-    margin-bottom: 14px;
-    border-radius: 14px;
-    background-color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .place-card-header {
     margin-bottom: 8px;
 }
 
-.place-card-title {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 6px;
-    color: #222;
-}
-
 .place-card-category {
-    display: inline-block;
-    font-size: 13px;
-    color: #2f5ec4;
-    background-color: #f1f5ff;
+    display: inline-flex;
+    align-items: center;
+    min-height: 27px;
+    padding: 4px 11px;
     border-radius: 999px;
-    padding: 4px 10px;
-    line-height: 1.4;
+    background-color: var(--tag-bg);
+    color: var(--tag-text);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
 }
 
 .place-card-address {
-    font-size: 14px;
-    color: #666;
-    line-height: 1.6;
-    margin-top: 8px;
+    margin-top: 9px;
 }
 
 .place-card-note {
     margin-top: 12px;
-    font-size: 14px;
-    color: #444;
-    line-height: 1.7;
-    background-color: #f8f8f8;
-    border-radius: 10px;
-    padding: 10px 12px;
 }
 
 .note-label {
-    font-size: 13px;
-    font-weight: bold;
-    color: #666;
     margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 800;
 }
-
-
-/* =========================
-   底部導覽列
-========================= */
 
 .place-card-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-top: 14px;
+    margin-top: 15px;
 }
 
 .place-card-actions form {
@@ -461,31 +528,43 @@ body {
 }
 
 .card-action-button {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
     min-height: 42px;
     padding: 10px 12px;
-    border-radius: 10px;
     border: 1px solid transparent;
-    box-sizing: border-box;
+    border-radius: 999px;
     font-family: inherit;
     font-size: 15px;
+    font-weight: 700;
     line-height: 20px;
     text-align: center;
     text-decoration: none;
     cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .edit-action {
-    background-color: #f1f5ff;
-    border-color: #d7e2ff;
-    color: #2f5ec4;
+    border-color: var(--border-soft);
+    background-color: var(--tag-bg);
+    color: var(--primary-hover);
+}
+
+.edit-action:hover {
+    background-color: #DED4C4;
 }
 
 .delete-action {
-    background-color: #fff1f1;
-    border-color: #ffd7d7;
-    color: #c42f2f;
+    border-color: #EBC8BF;
+    background-color: var(--delete-bg);
+    color: var(--delete-red);
+}
+
+.delete-action:hover {
+    background-color: #F1D4CB;
+    color: #9D5548;
 }
 
 .two-buttons {
@@ -498,24 +577,55 @@ body {
     position: fixed;
     left: 50%;
     bottom: 0;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 420px;
-    background-color: #ffffff;
-    border-top: 1px solid #ddd;
+    z-index: 20;
     display: flex;
     justify-content: space-around;
-    padding: 10px 0;
-    box-sizing: border-box;
+    width: 100%;
+    max-width: 420px;
+    padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border-soft);
+    background-color: rgba(255, 253, 247, 0.96);
+    box-shadow: 0 -8px 22px rgba(67, 55, 42, 0.07);
+    transform: translateX(-50%);
 }
 
 .bottom-nav a {
-    text-decoration: none;
-    color: #555;
+    flex: 1;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--text-muted);
     font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.bottom-nav a:hover {
+    color: var(--primary-hover);
 }
 
 .bottom-nav a.active {
-    color: #3f7cff;
-    font-weight: bold;
+    background-color: var(--tag-bg);
+    color: var(--primary-hover);
+}
+
+@media (max-width: 360px) {
+    .page {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .form-row,
+    .two-buttons,
+    .place-card-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .title,
+    .hero h1 {
+        font-size: 25px;
+    }
 }
