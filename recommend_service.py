@@ -37,36 +37,48 @@ def has_revisit_rating(revisit_rating):
     if revisit_rating is None:
         return False
 
-    rating = int(revisit_rating)
+    try:
+        rating = int(revisit_rating)
+    except (TypeError, ValueError):
+        return False
+
     return 1 <= rating <= 5
 
 
-def build_recommend_reason(recommended_place):
-    distance = recommended_place["distance"]
-    revisit_rating = recommended_place.get("revisit_rating")
+def build_recommend_reason(place):
+    rank = place.get("rank")
+    distance = place.get("distance")
+    revisit_rating = place.get("revisit_rating")
+    reason_lines = []
 
-    if not has_revisit_rating(revisit_rating):
-        return [
-            f"這個地點距離你目前位置約 {distance} 公里，目前尚未有回訪評分，因此系統以中立分數計算，保留探索新地點的機會。"
-        ]
+    if rank == 1:
+        reason_lines.append(
+            "第 1 名是目前綜合表現最好的推薦，距離便利性與回訪意願整體最符合這次條件。"
+        )
+    else:
+        reason_lines.append(
+            f"第 {rank} 名仍然很適合考慮，但距離便利性或回訪意願略低於前面的選項。"
+        )
 
-    rating = int(revisit_rating)
-    if rating >= 4 and not recommended_place.get("is_nearest_place"):
-        return [
-            f"這個地點距離你目前位置約 {distance} 公里，雖然這個地點不是距離最近的收藏，但你曾給予較高回訪評分，因此系統將它列為較適合的推薦選項。"
-        ]
+    reason_lines.append(f"距離目前位置約 {distance} 公里，距離便利性已納入排序。")
 
-    return [
-        f"距離你目前位置約 {distance} 公里。",
-        f"你的回訪意願評分為 {rating} / 5 星。",
-        "系統綜合考量距離便利性與過去偏好，因此推薦這個地點。",
-    ]
+    if has_revisit_rating(revisit_rating):
+        rating = int(revisit_rating)
+        reason_lines.append(f"你曾給過回訪意願 {rating} / 5 星，系統會把過去偏好一起考量。")
+    else:
+        reason_lines.append("尚未去過或尚未評分，系統以中立分數保留探索新地點的機會。")
+
+    if place.get("is_nearest_place"):
+        reason_lines.append("它也是本次候選中距離最近的地點。")
+
+    if place.get("is_highest_rating_place") and has_revisit_rating(revisit_rating):
+        reason_lines.append("它同時擁有本次候選中最高的回訪意願。")
+
+    return reason_lines
 
 
-def get_recommended_place(places, user_lat, user_lng):
-    recommended_place = None
-    highest_score = None
-    nearest_distance = None
+def get_recommended_places(places, user_lat, user_lng, limit=3):
+    scored_places = []
 
     for place in places:
         place_lat = place["latitude"]
@@ -81,25 +93,37 @@ def get_recommended_place(places, user_lat, user_lng):
             place_lat,
             place_lng,
         )
-        if nearest_distance is None or distance < nearest_distance:
-            nearest_distance = distance
-
         distance_score = calculate_distance_score(distance)
         rating_score = calculate_rating_score(place["revisit_rating"], place["visited"])
         final_score = distance_score * 0.7 + rating_score * 0.3
 
-        if highest_score is None or final_score > highest_score:
-            highest_score = final_score
-            recommended_place = dict(place)
-            recommended_place["distance"] = round(distance, 2)
-            recommended_place["distance_score"] = round(distance_score, 4)
-            recommended_place["rating_score"] = round(rating_score, 4)
-            recommended_place["final_score"] = round(final_score, 4)
+        scored_place = dict(place)
+        scored_place["_raw_distance"] = distance
+        scored_place["_raw_rating_score"] = rating_score
+        scored_place["_raw_final_score"] = final_score
+        scored_place["distance"] = round(distance, 2)
+        scored_place["distance_score"] = round(distance_score, 4)
+        scored_place["rating_score"] = round(rating_score, 4)
+        scored_place["final_score"] = round(final_score, 4)
+        scored_place["recommendation_strength"] = round(final_score * 100)
+        scored_places.append(scored_place)
 
-    if recommended_place is not None:
-        recommended_place["is_nearest_place"] = (
-            recommended_place["distance"] == round(nearest_distance, 2)
-        )
-        recommended_place["reason_lines"] = build_recommend_reason(recommended_place)
+    if not scored_places:
+        return []
 
-    return recommended_place
+    nearest_distance = min(place["_raw_distance"] for place in scored_places)
+    highest_rating_score = max(place["_raw_rating_score"] for place in scored_places)
+
+    scored_places.sort(key=lambda place: place["_raw_final_score"], reverse=True)
+    recommended_places = scored_places[:limit]
+
+    for index, place in enumerate(recommended_places, start=1):
+        place["rank"] = index
+        place["is_nearest_place"] = place["_raw_distance"] == nearest_distance
+        place["is_highest_rating_place"] = place["_raw_rating_score"] == highest_rating_score
+        place["reason_lines"] = build_recommend_reason(place)
+        place.pop("_raw_distance", None)
+        place.pop("_raw_rating_score", None)
+        place.pop("_raw_final_score", None)
+
+    return recommended_places

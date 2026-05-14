@@ -7,14 +7,7 @@ from google import genai
 load_dotenv()
 
 
-def build_fallback_reason(category, distance):
-    # 沒有 API Key 或 Gemini 失敗時，仍讓推薦頁可以正常顯示
-    category_text = category or "這個"
-    return f"這個地點符合你想去的「{category_text}」分類，且距離目前位置約 {distance} 公里，因此適合作為這次的推薦選擇。"
-
-
 def get_place_value(place, key, default=None):
-    # sqlite3.Row 和 dict 都支援用欄位名稱取值，這裡統一處理避免 Demo 時出錯
     if hasattr(place, "get"):
         return place.get(key, default)
 
@@ -43,40 +36,66 @@ def format_rating_text(revisit_rating):
     return f"{rating}/5"
 
 
-def generate_ai_reason(place, category, distance):
+def build_fallback_reason(place, category, total_recommendations=3):
+    rank = get_place_value(place, "rank", 1)
+    distance = get_place_value(place, "distance", "未知")
+
+    return (
+        f"這個地點在本次 {total_recommendations} 個推薦中排名第 {rank}，"
+        f"距離目前位置約 {distance} 公里，並結合「{category or '所選分類'}」"
+        "與回訪意願後排在這個推薦順位。"
+    )
+
+
+def generate_ai_reason(place, category, total_recommendations=3):
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        return build_fallback_reason(category, distance)
+        return build_fallback_reason(place, category, total_recommendations)
 
-    place_name = get_place_value(place, "place_name", "未提供")
+    place_name = get_place_value(place, "place_name", "未命名地點")
     address = get_place_value(place, "address")
     note = get_place_value(place, "note")
     visited = get_place_value(place, "visited")
     revisit_rating = get_place_value(place, "revisit_rating")
+    distance = get_place_value(place, "distance")
+    rank = get_place_value(place, "rank")
+    is_nearest_place = get_place_value(place, "is_nearest_place", False)
+    is_highest_rating_place = get_place_value(place, "is_highest_rating_place", False)
 
     visited_text = format_visited_text(visited)
-    note_text = note if note else "無"
     rating_text = format_rating_text(revisit_rating)
+    note_text = note if note else "無"
+    nearest_text = "是" if is_nearest_place else "否"
+    highest_rating_text = "是" if is_highest_rating_place else "否"
 
     prompt = f"""
-你是一個生活化的地點推薦助理。
-請根據以下資料，產生一段 80 字以內的繁體中文推薦理由。
+請用繁體中文為收藏地點產生一段排序推薦理由。
 
-地點名稱：{place_name or "未提供"}
-分類：{category or "未分類"}
+地點名稱：{place_name}
+分類：{category or "未提供"}
 地址：{address or "未提供"}
-距離：約 {distance} 公里
-是否去過：{visited_text}
-再訪意願：{rating_text}
 備註：{note_text}
+是否去過：{visited_text}
+回訪意願：{rating_text}
+距離：{distance} 公里
+本次排名：第 {rank} 名，共 {total_recommendations} 個推薦
+是否為距離最近：{nearest_text}
+是否為回訪意願最高：{highest_rating_text}
+
+請說明：
+1. 這個地點為什麼適合被推薦。
+2. 為什麼它會排在第 {rank} 名。
+3. 如果它是第 1 名，強調距離便利性與過去偏好的綜合表現最好。
+4. 如果它不是第 1 名，說明它仍值得考慮，但在距離或回訪意願上略低於前面選項。
 
 限制：
-1. 語氣自然、生活化。
-2. 不要超過 80 字。
-3. 不要編造未提供的資訊，例如營業時間、價格、餐點、裝潢、氣氛、排隊狀況。
-4. 不要提到你是 AI。
-5. 請直接輸出推薦理由，不要加標題。
+- 100 字以內。
+- 語氣自然、生活化。
+- 不要編造未提供的營業時間、價格、餐點、裝潢、氣氛或排隊狀況。
+- 不要輸出綜合分數、推薦強度百分比或任何內部評分數值。
+- 不要提到「我是 AI」。
+- 直接輸出推薦理由，不要加標題。
 """.strip()
 
     try:
@@ -89,10 +108,9 @@ def generate_ai_reason(place, category, distance):
         ai_reason = response.text.strip() if response.text else ""
 
         if not ai_reason:
-            return build_fallback_reason(category, distance)
+            return build_fallback_reason(place, category, total_recommendations)
 
         return ai_reason
     except Exception as error:
-        # Demo 穩定優先：Gemini 失敗時不要中斷推薦頁
         print(f"Gemini API error: {error}")
-        return build_fallback_reason(category, distance)
+        return build_fallback_reason(place, category, total_recommendations)

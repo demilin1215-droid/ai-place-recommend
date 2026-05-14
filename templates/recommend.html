@@ -14,14 +14,14 @@
         <header>
             <div class="title">推薦結果</div>
             <div class="subtitle">
-                系統會從你的收藏清單中，依照分類、距離遠近與回訪意願，推薦目前最適合前往的地點。
+                系統會從你的收藏清單中，依照分類、距離遠近與回訪意願，排序出目前最適合前往的前三個地點。
             </div>
         </header>
 
         <div class="location-box">
             <div class="location-label">想去的分類</div>
             <div class="location-value">
-                {{ category_label or "尚未選擇" }}
+                {{ category_label or "尚未選擇分類" }}
             </div>
         </div>
 
@@ -31,9 +31,9 @@
             {% if location %}
                 <div class="location-value">{{ location }}</div>
             {% elif lat and lng %}
-                <div class="location-value">已取得目前位置，將以此作為推薦起點</div>
+                <div class="location-value">已使用目前定位產生推薦</div>
             {% else %}
-                <div class="location-value">尚未提供位置</div>
+                <div class="location-value">尚未取得位置</div>
             {% endif %}
         </div>
 
@@ -44,40 +44,61 @@
                 <div class="empty-box">
                     {{ message }}
                 </div>
-            {% elif recommended_place %}
-                <div class="recommend-card">
-                    <div class="recommend-rank">推薦的地點</div>
+            {% elif recommended_places %}
+                {% for place in recommended_places %}
+                    <div class="recommend-card {% if place['rank'] == 1 %}recommend-card-top{% endif %}">
+                        <div class="recommend-rank">
+                            {% if place["rank"] == 1 %}
+                                No.1 最推薦
+                            {% elif place["rank"] == 2 %}
+                                No.2 也很適合
+                            {% else %}
+                                No.3 可作為備選
+                            {% endif %}
+                        </div>
 
-                    <div class="place-name">
-                        {{ recommended_place["place_name"] }}
-                    </div>
+                        <div class="place-name">
+                            {{ place["place_name"] }}
+                        </div>
 
-                    <div class="place-info">
-                        {{ recommended_place["category_label"] or "未分類" }}
+                        <div class="place-info">
+                            {{ place["category_label"] or category_label or "未分類" }}
 
-                        {% if recommended_place["address"] %}
-                            ｜{{ recommended_place["address"] }}
-                        {% endif %}
-                    </div>
+                            {% if place["address"] %}
+                                ・{{ place["address"] }}
+                            {% endif %}
+                        </div>
 
-                    <div class="reason">
-                        <strong>推薦依據：</strong><br>
-                        {% for reason_line in recommended_place["reason_lines"] %}
-                            {{ reason_line }}{% if not loop.last %}<br>{% endif %}
-                        {% endfor %}
-                    </div>
+                        <div class="recommend-meta">
+                            <span>距離約 {{ place["distance"] }} 公里</span>
 
-                    <div class="reason ai-reason">
-                        <strong>推薦理由：</strong><br>
-                        {% if ai_reason %}
-                            {{ ai_reason }}
-                        {% else %}
-                            {% for reason_line in recommended_place["reason_lines"] %}
+                            {% if place["revisit_rating"] and place["revisit_rating"]|int > 0 %}
+                                <span>回訪意願 {{ place["revisit_rating"] }} / 5 星</span>
+                            {% else %}
+                                <span>尚未評分</span>
+                            {% endif %}
+
+                        </div>
+
+                        <div class="reason">
+                            <strong>系統推薦依據：</strong><br>
+                            {% for reason_line in place["reason_lines"] %}
                                 {{ reason_line }}{% if not loop.last %}<br>{% endif %}
                             {% endfor %}
-                        {% endif %}
+                        </div>
+
+                        <div class="reason ai-reason">
+                            <strong>AI 推薦理由：</strong><br>
+                            {% if place["ai_reason"] %}
+                                {{ place["ai_reason"] }}
+                            {% else %}
+                                {% for reason_line in place["reason_lines"] %}
+                                    {{ reason_line }}{% if not loop.last %}<br>{% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
+                {% endfor %}
             {% else %}
                 <div class="empty-box">
                     目前無法產生推薦結果。

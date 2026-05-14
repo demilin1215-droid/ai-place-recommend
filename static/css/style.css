@@ -441,6 +441,48 @@ select[multiple].input {
     line-height: 1.4;
 }
 
+.recommend-card {
+    position: relative;
+}
+
+.recommend-card-top {
+    border-color: rgba(111, 125, 92, 0.42);
+    box-shadow: 0 10px 24px rgba(67, 55, 42, 0.11);
+}
+
+.recommend-card-top .recommend-rank {
+    background-color: #DDE5D2;
+    color: var(--primary-hover);
+}
+
+.recommend-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.recommend-meta span,
+.strength-pill,
+.score-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background-color: var(--note-bg);
+    color: var(--tag-text);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.strength-pill,
+.score-pill {
+    background-color: var(--primary);
+    color: #FFFDF7;
+}
+
 .place-name,
 .favorite-name,
 .place-card-title,

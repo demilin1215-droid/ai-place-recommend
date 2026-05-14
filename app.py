@@ -6,7 +6,7 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, session, url_for  # 從 Flask 套件中匯入會用到的功能
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv  # 載入 .env 環境變數檔案
-from recommend_service import get_recommended_place  # 用於計算地理距離
+from recommend_service import get_recommended_places  # 用於計算地理距離與推薦排序
 from ai_service import generate_ai_reason  # 用於產生 AI 推薦理由
 import requests        # 用於發送 HTTP 請求（如呼叫 Google Maps API）
 
@@ -473,7 +473,7 @@ def recommend():
         if not user_lat or not user_lng:
             return render_template(
                 "recommend.html",
-                recommended_place=None,
+                recommended_places=[],
                 location=location,
                 lat=user_lat,
                 lng=user_lng,
@@ -486,7 +486,7 @@ def recommend():
     if not category:
         return render_template(
             "recommend.html",
-            recommended_place=None,
+            recommended_places=[],
             location=location,
             lat=user_lat,
             lng=user_lng,
@@ -499,7 +499,7 @@ def recommend():
         
         return render_template(
             "recommend.html",
-            recommended_place=None,
+            recommended_places=[],
             location=location,
             lat=user_lat,
             lng=user_lng,
@@ -528,7 +528,7 @@ def recommend():
     if not places:
         return render_template(
             "recommend.html",
-            recommended_place=None,
+            recommended_places=[],
             location=location,
             lat=user_lat,
             lng=user_lng,
@@ -538,17 +538,18 @@ def recommend():
         )
 
 	# 呼叫 recommend_service.py 裡面的推薦地點
-    recommended_place = get_recommended_place(
+    recommended_places = get_recommended_places(
         places,
         user_lat,
-        user_lng
+        user_lng,
+        limit=3
     )
 
 	# 如果所有地點都沒有經緯度
-    if recommended_place is None:
+    if not recommended_places:
         return render_template(
             "recommend.html",
-            recommended_place=None,
+            recommended_places=[],
             location=location,
             lat=user_lat,
             lng=user_lng,
@@ -558,16 +559,16 @@ def recommend():
         )
 
     # 推薦地點成功產生後，再補上 AI 推薦理由；失敗時 ai_service 會自動回傳 fallback
-    ai_reason = generate_ai_reason(
-        recommended_place,
-        category,
-        recommended_place["distance"]
-    )
+    for place in recommended_places:
+        place["ai_reason"] = generate_ai_reason(
+            place,
+            category_label or category,
+            total_recommendations=len(recommended_places)
+        )
 
     return render_template(
         "recommend.html",
-        recommended_place=recommended_place,
-        ai_reason=ai_reason,
+        recommended_places=recommended_places,
         location=location,
         lat=user_lat,
         lng=user_lng,
