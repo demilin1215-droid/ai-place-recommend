@@ -118,6 +118,7 @@ def normalize_ai_reason(reason):
 
 def generate_ai_reasons_for_places(places, category, total_recommendations=3):
     api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
     fallback_reasons = build_fallback_reasons_for_places(
         places,
         category,
@@ -196,7 +197,7 @@ def generate_ai_reasons_for_places(places, category, total_recommendations=3):
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model=gemini_model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 responseMimeType="application/json",
@@ -216,6 +217,7 @@ def generate_ai_reasons_for_places(places, category, total_recommendations=3):
             reasons_by_rank[rank] = ai_reason or fallback_reasons[rank]
 
         return reasons_by_rank
-    except Exception:
+    except Exception as error:
+        print(f"Gemini API error: {error}")
         return fallback_reasons
 
