@@ -118,7 +118,7 @@ def normalize_ai_reason(reason):
 
 def generate_ai_reasons_for_places(places, category, total_recommendations=3):
     api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
-    gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
     fallback_reasons = build_fallback_reasons_for_places(
         places,
         category,
